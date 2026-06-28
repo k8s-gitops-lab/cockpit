@@ -13,10 +13,12 @@ env: ## Affiche les variables exportees depuis platform.yml
 
 vm-images-build: ## Construit les boxes Vagrant k8s-master/k8s-worker via Packer
 	@$(ENV); \
+	echo "==> control-plane: vm-images-build -> make -C $$CLUSTER_REPO/packer build"; \
 	$(MAKE_BIN) -C "$$CLUSTER_REPO/packer" build
 
 vm-images-add: ## Ajoute les boxes Packer construites au registre Vagrant local
 	@$(ENV); \
+	echo "==> control-plane: vm-images-add -> vagrant box add"; \
 	vagrant box add k8s-master "$$CLUSTER_REPO/packer/output/k8s-master/package.box" --force; \
 	vagrant box add k8s-worker "$$CLUSTER_REPO/packer/output/k8s-worker/package.box" --force
 
@@ -24,6 +26,7 @@ vm-images: vm-images-build vm-images-add ## Construit et enregistre les images V
 
 cluster-up: ## Provisionne le socle cluster via ../cluster
 	@$(ENV); \
+	echo "==> control-plane: cluster-up -> make -C $$CLUSTER_REPO up"; \
 	$(MAKE_BIN) -C "$$CLUSTER_REPO" up \
 	  gateway_api_version="$$GATEWAY_API_VERSION" \
 	  metallb_chart_version="$$METALLB_CHART_VERSION" \
@@ -31,6 +34,7 @@ cluster-up: ## Provisionne le socle cluster via ../cluster
 
 cluster-from-images: vm-images-add ## Deploie le cluster depuis les boxes Packer k8s-master/k8s-worker
 	@$(ENV); \
+	echo "==> control-plane: cluster-from-images -> make -C $$CLUSTER_REPO create-cluster"; \
 	$(MAKE_BIN) -C "$$CLUSTER_REPO" create-cluster \
 	  gateway_api_version="$$GATEWAY_API_VERSION" \
 	  metallb_chart_version="$$METALLB_CHART_VERSION" \
@@ -38,8 +42,11 @@ cluster-from-images: vm-images-add ## Deploie le cluster depuis les boxes Packer
 
 platform-up: vm-images cluster-from-images platform-bootstrap ## Construit les images, deploie le cluster et bootstrappe la plateforme
 
+platform-fast-up: cluster-from-images platform-bootstrap ## Construit les images, deploie le cluster et bootstrappe la plateforme
+
 platform-bootstrap: ## Bootstrap ArgoCD et la plateforme via ../platform-cicd
 	@$(ENV); \
+	echo "==> control-plane: platform-bootstrap -> make -C $$PLATFORM_REPO_ROOT bootstrap"; \
 	$(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" bootstrap \
 	  ARGOCD_VERSION="$$ARGOCD_VERSION" \
 	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
@@ -49,6 +56,7 @@ platform-bootstrap: ## Bootstrap ArgoCD et la plateforme via ../platform-cicd
 
 gitlab-seed: ## Seed les projets GitLab via ../toolbox
 	@$(ENV); \
+	echo "==> control-plane: gitlab-seed -> make -C $$TOOLBOX_REPO gitlab-seed"; \
 	$(MAKE_BIN) -C "$$TOOLBOX_REPO" gitlab-seed \
 	  PLATFORM_REPO_ROOT="$$PLATFORM_REPO_ROOT" \
 	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
@@ -57,6 +65,7 @@ gitlab-seed: ## Seed les projets GitLab via ../toolbox
 
 argocd-repo-creds: ## Cree les credentials ArgoCD pour les repos manifests prives
 	@$(ENV); \
+	echo "==> control-plane: argocd-repo-creds -> make -C $$TOOLBOX_REPO argocd-repo-creds"; \
 	$(MAKE_BIN) -C "$$TOOLBOX_REPO" argocd-repo-creds \
 	  PLATFORM_REPO_ROOT="$$PLATFORM_REPO_ROOT" \
 	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
@@ -64,4 +73,4 @@ argocd-repo-creds: ## Cree les credentials ArgoCD pour les repos manifests prive
 	  ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"
 
 status: ## Affiche l'etat ArgoCD depuis ../platform-cicd
-	@$(ENV); $(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" status ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"
+	@$(ENV); echo "==> control-plane: status -> make -C $$PLATFORM_REPO_ROOT status"; $(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" status ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"
