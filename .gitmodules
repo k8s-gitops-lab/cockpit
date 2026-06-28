@@ -1,0 +1,12 @@
+[submodule "cluster"]
+	path = cluster
+	url = ../cluster
+[submodule "platform-cicd"]
+	path = platform-cicd
+	url = ../platform-cicd
+[submodule "platform-gitops"]
+	path = platform-gitops
+	url = ../platform-gitops
+[submodule "toolbox"]
+	path = toolbox
+	url = ../toolbox
