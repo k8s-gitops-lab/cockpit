@@ -159,7 +159,7 @@ dans `platform-gitops` : ArgoCD lit Git, pas le disque local — sans le push,
 le changement n'est jamais pris en compte. Pendant l'amorcage, certaines
 references ArgoCD peuvent pointer vers GitHub pour eviter une dependance
 circulaire avec GitLab ; les operations toolbox qui modifient l'inventaire
-GitOps ouvrent leurs branches et merge requests sur le depot source GitHub.
+GitOps ouvrent leurs branches et pull requests sur le depot source GitHub.
 
 Voir aussi [`source-control.md`](./source-control.md) : GitHub est l'amont du
 code source et la cible de `PLATFORM_REPO_URL`, tandis que GitLab porte les

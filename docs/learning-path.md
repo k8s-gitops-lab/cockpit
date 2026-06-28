@@ -99,7 +99,7 @@ make argocd-apps-render
 ```
 
 Puis commit et push depuis `platform-gitops`. Pour une operation sur la
-plateforme deployee, ouvrir la merge request sur le depot GitHub
+plateforme deployee, ouvrir la pull request sur le depot GitHub
 `poc-devops-elkouhen/platform-gitops`. ArgoCD lit Git, pas le disque local.
 
 ## 8. Arreter la plateforme

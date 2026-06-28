@@ -27,18 +27,18 @@ cluster utilisent ces depots GitLab.
 ## PLATFORM_REPO_URL : depot source GitOps
 
 `PLATFORM_REPO_URL` des commandes toolbox pointe vers le depot source
-`platform-gitops` sur GitHub. C'est ce depot qui recoit les branches et merge
+`platform-gitops` sur GitHub. C'est ce depot qui recoit les branches et pull
 requests d'evolution de l'inventaire GitOps.
 
 ```sh
 PLATFORM_REPO_URL=https://github.com/poc-devops-elkouhen/platform-gitops.git \
-  GITLAB_TOKEN=<token> \
+  GITHUB_TOKEN=<token> \
   python3 ../toolbox/scripts/init-project.py helloworld
 ```
 
 ```sh
 PLATFORM_REPO_URL=https://github.com/poc-devops-elkouhen/platform-gitops.git \
-  GITLAB_TOKEN=<token> \
+  GITHUB_TOKEN=<token> \
   python3 ../toolbox/scripts/delete-project.py helloworld
 ```
 
