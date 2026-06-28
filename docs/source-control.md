@@ -33,13 +33,13 @@ requests d'evolution de l'inventaire GitOps.
 ```sh
 PLATFORM_REPO_URL=https://github.com/poc-devops-elkouhen/platform-gitops.git \
   GITHUB_TOKEN=<token> \
-  python3 ../toolbox/scripts/init-project.py helloworld
+  python3 toolbox/scripts/init-project.py helloworld
 ```
 
 ```sh
 PLATFORM_REPO_URL=https://github.com/poc-devops-elkouhen/platform-gitops.git \
   GITHUB_TOKEN=<token> \
-  python3 ../toolbox/scripts/delete-project.py helloworld
+  python3 toolbox/scripts/delete-project.py helloworld
 ```
 
 Les depots applicatifs lus par ArgoCD utilisent l'URL interne GitLab

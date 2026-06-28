@@ -92,9 +92,9 @@ Pour une release :
 Toute modification d'app se fait dans `platform-gitops` :
 
 ```sh
-cd ../platform-gitops
+cd platform-gitops
 vim argocd/apps/<app>.yaml
-cd ../platform-cicd
+cd platform-cicd
 make argocd-apps-render
 ```
 

@@ -10,10 +10,10 @@ propre repo.
 `control-plane` fournit seulement un profil local pour enchaîner les commandes
 des repos specialises avec des variables explicites :
 
-- `../cluster` : socle Kubernetes, storage, Gateway API, MetalLB, Traefik.
-- `../platform-cicd` : bootstrap ArgoCD, GitLab, registry et runner.
-- `../platform-gitops` : configuration suivie en continu par ArgoCD.
-- `../toolbox` : seed GitLab, credentials ArgoCD et onboarding.
+- `cluster` : socle Kubernetes, storage, Gateway API, MetalLB, Traefik.
+- `platform-cicd` : bootstrap ArgoCD, GitLab, registry et runner.
+- `platform-gitops` : configuration suivie en continu par ArgoCD.
+- `toolbox` : seed GitLab, credentials ArgoCD et onboarding.
 
 La vue globale du projet vit ici :
 
@@ -76,5 +76,9 @@ bash scripts/clone-github-org.sh
 bash scripts/commit-push-subprojects.sh --message "..." --remote github
 ```
 
-Par defaut, ils ciblent le dossier parent de `control-plane`, c'est-a-dire le
-workspace qui contient les repos freres.
+Les repos du POC sont maintenant references comme sous-modules Git. Apres un
+clone, initialiser le workspace avec :
+
+```sh
+git submodule update --init --recursive
+```

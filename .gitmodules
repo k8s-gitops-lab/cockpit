@@ -10,3 +10,12 @@
 [submodule "toolbox"]
 	path = toolbox
 	url = ../toolbox
+[submodule "ci-templates"]
+	path = ci-templates
+	url = ../ci-templates
+[submodule "helloworld"]
+	path = helloworld
+	url = ../helloworld
+[submodule "helloworld-iac"]
+	path = helloworld-iac
+	url = ../helloworld-iac

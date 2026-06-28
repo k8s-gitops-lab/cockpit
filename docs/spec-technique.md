@@ -34,7 +34,7 @@ Notes :
   restent deux projets GitLab distincts : le pipeline CI tourne dans `<app>`
   mais clone et pousse sur `<app>-iac` via `GITLAB_PUSH_TOKEN`.
 - **Gate sur `main` du dépôt de code** (`<app>`) : configuré par
-  `../toolbox/scripts/gitlab-seed.py` (`configure_main_gate`) — branche protégée,
+  `toolbox/scripts/gitlab-seed.py` (`configure_main_gate`) — branche protégée,
   `push_access_level: No one`, `merge_access_level: Maintainers`. Les
   features ne peuvent donc atteindre `main` que via une MR mergée par un
   Maintainer. L'« approbation obligatoire » (nombre d'approbateurs requis,
@@ -92,7 +92,7 @@ seul dépôt de code (`helloworld`), deux sous-dossiers/modules
 nginx, qui appelle l'API via `helloworld-svc` en DNS interne du namespace,
 avec un préfixe HTTP proxié — pas de configuration d'URL par stage). Le fichier
 `platform-gitops/argocd/apps/helloworld.yaml` porte `code:` au niveau app (pas par service) et `services: [...]` ne liste
-plus que `name`/`image` par service ; `../toolbox/scripts/gitlab-seed.py` crée et
+plus que `name`/`image` par service ; `toolbox/scripts/gitlab-seed.py` crée et
 seed un seul projet GitLab par app (boucle `apps` de l'inventaire) ;
 `ci-templates/gitlab-ci.yml` boucle sur `${SERVICES}` (liste
 `<service>=<image>` espacée) pour le build (un `Dockerfile` par
@@ -140,9 +140,9 @@ sous-dossier) et le déploiement (plusieurs `kustomize edit set image`).
     argocd-apps-render`, à pousser sur `origin main`) et synchronisée en
     continu par le root Application "app of apps" (`argocd/root-app.yaml`,
     cf. "Point d'entrée" dans AGENTS.md). Une copie réutilisable existe aussi
-    dans `../toolbox/scripts/render-argocd-apps.py`, pilotable avec
+    dans `toolbox/scripts/render-argocd-apps.py`, pilotable avec
     `PLATFORM_REPO_ROOT`.
-  - **`../toolbox/scripts/gitlab-seed.py` généralisé** : boucle sur l'inventaire pour créer et
+  - **`toolbox/scripts/gitlab-seed.py` généralisé** : boucle sur l'inventaire pour créer et
     seeder les dépôts `<app>`/`<app>-iac`, configurer les gates, et
     initialiser les branches d'environnement du dépôt manifests selon
     `HAS_PREPROD`.
@@ -233,13 +233,13 @@ depuis `platform-cicd` sans dépendre d'un repo frère. `control-plane`
 orchestre ces cibles via son propre `Makefile`.
 
 Une copie réutilisable de ces utilitaires a été extraite dans
-`../toolbox`. Cette toolbox sert aux autres projets ou aux appels
+`toolbox`. Cette toolbox sert aux autres projets ou aux appels
 hors du dépôt GitOps. Les scripts y acceptent `PLATFORM_REPO_ROOT` pour
 pointer vers la racine `platform-gitops` :
 
 ```sh
-PLATFORM_REPO_ROOT=../platform-gitops \
-  python3 ../toolbox/scripts/render-argocd-apps.py
+PLATFORM_REPO_ROOT=platform-gitops \
+  python3 toolbox/scripts/render-argocd-apps.py
 ```
 
 Règle de maintenance : tant que le bootstrap plateforme dépend des scripts
@@ -255,9 +255,9 @@ La chaîne CI/CD principale (`make bootstrap`, GitLab, ArgoCD, registry,
 maintenant automatisée dans le dépôt.
 Les anciennes interventions manuelles de bootstrap ont été absorbées par les
 scripts versionnés localement, avec une copie partagée dans
-`../toolbox` :
+`toolbox` :
 
-- `../toolbox/scripts/gitlab-seed.py` crée/seede les projets applicatifs et manifests,
+- `toolbox/scripts/gitlab-seed.py` crée/seede les projets applicatifs et manifests,
   génère les `.gitlab-ci.yml`, initialise les branches d'environnement et
   configure les protections GitLab.
 - `scripts/gitlab-runner-token.py` et `scripts/argocd-repo-creds.py` créent
@@ -268,7 +268,7 @@ scripts versionnés localement, avec une copie partagée dans
 L'ensemble des scripts d'outillage est écrit en **Python 3** (anciennement
 Ruby et Bash). Les scripts qui lisent ou écrivent du YAML
 (`filter-argocd-install.py`, `argocd-repo-creds.py`, `render-argocd-apps.py`,
-`../toolbox/scripts/gitlab-seed.py`) nécessitent `pyyaml` (`pip3 install -r requirements.txt`) ;
+`toolbox/scripts/gitlab-seed.py`) nécessitent `pyyaml` (`pip3 install -r requirements.txt`) ;
 `init-project.py` et `gitlab-runner-token.py` fonctionnent sans dépendance
 externe. Dans la toolbox, `PLATFORM_REPO_ROOT` remplace les anciens chemins
 implicites basés sur l'emplacement du script.
@@ -318,7 +318,7 @@ Dette active hors chaîne CI/CD applicative :
 
 ## Annexe : cluster Ansible/k8s
 
-`../cluster` (Packer, Vagrant et playbooks Ansible) fournit le socle
+`cluster` (Packer, Vagrant et playbooks Ansible) fournit le socle
 Kubernetes local sur lequel la chaîne CI/CD `helloworld`, ArgoCD, GitLab et le
 registry sont déployés. La séparation de responsabilités reste volontaire :
 `cluster` construit et initialise le socle Kubernetes, `platform-cicd` déploie

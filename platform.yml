@@ -13,15 +13,15 @@ platform:
     namespace: registry
     host: registry.registry.svc.cluster.local:5000
   repositories:
-    cluster: ../cluster
-    platform: ../platform-cicd
-    gitops: ../platform-gitops
-    toolbox: ../toolbox
-    ciTemplates: ../ci-templates
+    cluster: cluster
+    platform: platform-cicd
+    gitops: platform-gitops
+    toolbox: toolbox
+    ciTemplates: ci-templates
   ciTemplate:
     projectPath: root/ci-templates
     projectName: ci-templates
-    sourceDir: ../ci-templates
+    sourceDir: ci-templates
     ref: v0.11.1
     file: /gitlab-ci.yml
 
