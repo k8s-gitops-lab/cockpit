@@ -23,6 +23,7 @@ La vue globale du projet vit ici :
 - `docs/prd.md` : intention, périmètre et limites du POC.
 - `docs/spec-fonctionnelle.md` : flow Git, CI/CD et parcours applicatif.
 - `docs/spec-technique.md` : détails d'implémentation et contraintes infra.
+- `docs/test-strategy.md` : stratégie de test locale, inter-repos et E2E.
 - `docs/prod-constraints.md` : contraintes à prévoir pour une cible prod.
 
 ## Usage

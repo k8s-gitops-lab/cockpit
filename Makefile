@@ -3,10 +3,11 @@ ENV_FILE ?= .control-plane.env
 MAKE_BIN ?= make
 ENV = CONFIG="$(CONFIG)" python3 scripts/export-env.py > "$(ENV_FILE)" && . "$(ENV_FILE)"
 
-.PHONY: help env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-fast-up platform-bootstrap platform-down platform-destroy gitlab-seed argocd-repo-creds argocd-password gitlab-password status
+.PHONY: help validate test validate-workspace smoke env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-fast-up platform-bootstrap platform-down platform-destroy gitlab-seed argocd-repo-creds argocd-password gitlab-password status
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
+
 
 env: ## Affiche les variables exportees depuis platform.yml
 	@CONFIG="$(CONFIG)" python3 scripts/export-env.py
