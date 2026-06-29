@@ -75,6 +75,7 @@ Les scripts operateur du workspace sont versionnes dans `scripts/` :
 ```sh
 bash scripts/clone-github-org.sh
 bash scripts/commit-push-subprojects.sh --message "..." --remote github
+bash scripts/commit-gitlab-app-repos.sh --message "..."
 ```
 
 Les repos du POC sont maintenant references comme sous-modules Git. Apres un

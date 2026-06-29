@@ -22,7 +22,7 @@ platform:
     projectPath: root/ci-templates
     projectName: ci-templates
     sourceDir: ../ci-templates
-    ref: v0.11.1
+    ref: v0.11.2
     file: /gitlab-ci.yml
 
 versions:
