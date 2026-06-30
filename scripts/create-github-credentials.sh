@@ -20,7 +20,7 @@ kubectl create secret generic "$SECRET_NAME" \
   --namespace "$NAMESPACE" \
   --from-literal=username=x-token \
   --from-literal=password="$GITHUB_PAT" \
-  --from-literal=token="$GITHUB_PAT" \
+  --from-literal=github_token="$GITHUB_PAT" \
   --dry-run=client -o yaml \
   | kubectl apply -f -
 
