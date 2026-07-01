@@ -16,13 +16,6 @@ platform:
     platform: ../platform-cicd
     gitops: ../platform-gitops
     toolbox: ../toolbox
-    ciTemplates: ../ci-templates
-  ciTemplate:
-    projectPath: infra/ci-templates
-    projectName: ci-templates
-    sourceDir: ../ci-templates
-    ref: v1.13.1
-    file: /gitlab-ci.yml
 
 versions:
   kubernetes: "1.36.2"
