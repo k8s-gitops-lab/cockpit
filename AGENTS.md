@@ -56,6 +56,21 @@ bootstrap`), pas pour porter la logique de séquencement elle-même.
 doit passer par le `provisioner "ansible"` (réutilisant les rôles/playbooks
 existants), jamais par un `provisioner "shell"` ad hoc — cf. `cluster/AGENTS.md`.
 
+## Structure du code Ansible
+
+Une tâche Ansible doit rester simple (une action/un module) et ne doit
+**jamais lancer un autre run Ansible en sous-processus** — pas de tâche
+`command`/`shell` qui invoque `ansible-playbook`, `ansible` ou
+`ansible-galaxy`. Ce shell-out cassé la visibilité de l'exécution englobante
+(`--check`/`--diff`, filtrage par tags, rapport idempotent) et duplique un
+mécanisme qu'Ansible fournit déjà nativement.
+
+Les mécanismes natifs de composition (`roles:`, `include_role`,
+`import_role`, `include_tasks`) restent la bonne façon de réutiliser un
+groupe de tâches — ce ne sont pas des tâches qui « exécutent d'autres
+tâches » au sens shell, ce sont des directives de structuration déclarative
+du même run Ansible.
+
 ## Workflow Git
 
 Ne jamais modifier les fichiers directement dans GitLab. Toujours :
