@@ -26,6 +26,32 @@ make gitlab-tf-credentials # Créer/rotater le PAT GitLab Terraform
 make status            # État ArgoCD
 ```
 
+## Ordre de préférence pour le déploiement
+
+Quand plusieurs mécanismes sont possibles pour une même tâche de déploiement,
+respecter cet ordre de préférence :
+
+1. **Ressource Terraform ou Kubernetes déclarative** (provider TF, manifest
+   appliqué par ArgoCD/Flux) — pas de script custom si la ressource native
+   suffit.
+2. **Ansible** (playbook/rôle) pour les tâches impératives multi-étapes
+   (provisioning, orchestration, idempotence via modules) quand une ressource
+   déclarative ne suffit pas.
+3. **Make**, en dernier recours — cible manuelle simple qui enchaîne d'autres
+   commandes ou expose un point d'entrée à l'opérateur, pas pour porter de la
+   logique métier.
+
+Exemple appliqué : dans `platform-cicd`, les étapes de bootstrap ArgoCD/Flux
+(CA trust, install, ingress, secret SOPS) vivent dans `ansible/` ; le Makefile
+ne fait qu'appeler `ansible-playbook --tags <étape>`.
+
+**Orchestration de plusieurs tâches** : quand il s'agit d'enchaîner plusieurs
+étapes (séquence, reprise après échec, dépendances entre étapes), préférer
+l'orchestration Ansible (playbook avec plusieurs tâches/rôles tagués,
+`--start-at-task`, `--tags`) plutôt qu'un enchaînement de cibles Make. Make
+reste pour exposer un point d'entrée unique à l'opérateur (ex. `make
+bootstrap`), pas pour porter la logique de séquencement elle-même.
+
 ## Workflow Git
 
 Ne jamais modifier les fichiers directement dans GitLab. Toujours :
