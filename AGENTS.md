@@ -41,9 +41,11 @@ respecter cet ordre de préférence :
    commandes ou expose un point d'entrée à l'opérateur, pas pour porter de la
    logique métier.
 
-Exemple appliqué : dans `platform-cicd`, les étapes de bootstrap ArgoCD/Flux
-(CA trust, install, ingress, secret SOPS) vivent dans `ansible/` ; le Makefile
-ne fait qu'appeler `ansible-playbook --tags <étape>`.
+Exemple appliqué : les étapes de bootstrap ArgoCD/Flux (CA trust, install,
+ingress, secret SOPS) vivent dans le rôle `platform_bootstrap` de
+`cluster/ansible/` (tout le code Ansible du POC est fusionné dans ce dépôt) ;
+le Makefile de `platform-cicd` ne fait qu'appeler, en relatif,
+`ansible-playbook playbook-platform.yml --tags <étape>` dans `cluster/ansible`.
 
 **Orchestration de plusieurs tâches** : quand il s'agit d'enchaîner plusieurs
 étapes (séquence, reprise après échec, dépendances entre étapes), préférer
