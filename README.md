@@ -40,7 +40,7 @@ make platform-up
 Cette unique commande construit tout depuis zéro : images VM Packer, cluster
 Kubernetes, puis bootstrap plateforme (ArgoCD, GitLab, secret GHCR, runner).
 Elle est idempotente et reprend automatiquement à l'étape utile en cas
-d'échec (voir "Usage" ci-dessous pour le détail des 4 étapes et les reprises
+d'échec (voir "Usage" ci-dessous pour le détail des 5 étapes et les reprises
 manuelles).
 
 Une fois la commande terminée :
@@ -96,6 +96,9 @@ Cette commande enchaine, avec reprise automatique en cas d'échec
 - `make platform-bootstrap` : installe ArgoCD puis bootstrappe GitLab, le
   runner et les apps plateforme (les images applicatives sont poussées sur
   GHCR, pas sur un registry interne).
+- `make ghcr-pull-secret` : depose le secret GHCR source dans le namespace
+  `argocd` ; chaque app le recopie ensuite dans ses namespaces via un Job
+  genere par `render-argocd-apps.py` a la creation de ses namespaces.
 - `make gitlab-git-creds` : cree un PAT GitLab root et l'injecte dans
   `git-credential` pour l'URL interne du cluster.
 
@@ -106,6 +109,7 @@ make env
 make vm-images
 make cluster-from-images
 make platform-bootstrap
+make ghcr-pull-secret
 make gitlab-git-creds
 ```
 
@@ -135,7 +139,7 @@ dans ce repo, puis peut etre surchargee ici pour orchestrer le POC complet.
 
 Les compromis de securite propres au POC sont documentes dans
 `docs/security-poc.md`, incluant la gestion des secrets chiffres SOPS
-(`secrets/github-credentials.yaml`).
+(`secrets/ghcr-pull-secret.yaml`).
 
 ## Scripts workspace
 

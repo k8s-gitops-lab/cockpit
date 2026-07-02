@@ -25,16 +25,16 @@ le niveau de sensibilite, et applique par GitOps.
 
 ## Gestion des secrets sensibles — SOPS + age
 
-Les credentials qui ne doivent pas apparaitre en clair dans git (PAT GitHub,
-tokens de service) sont stockes dans `secrets/` sous forme de fichiers SOPS
-chiffres avec `age`.
+Les credentials qui ne doivent pas apparaitre en clair dans git (tokens de
+service, secrets `dockerconfigjson`) sont stockes dans `secrets/` sous forme
+de fichiers SOPS chiffres avec `age` — par exemple
+`secrets/ghcr-pull-secret.yaml`, decrypte par `make ghcr-pull-secret`.
 
 ### Structure
 
 ```
 .sops.yaml              # règle de chiffrement (commité)
-secrets/
-  github-credentials.yaml   # fichier chiffré (commité)
+secrets/*.yaml           # fichiers chiffrés (commités)
 ~/.config/sops/age/keys.txt # clé privée age (JAMAIS commitée)
 ```
 
@@ -55,26 +55,17 @@ La cle publique correspondante est enregistree dans `.sops.yaml`.
 ### Modifier un secret
 
 ```bash
-SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops secrets/github-credentials.yaml
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops secrets/ghcr-pull-secret.yaml
 ```
 
 SOPS ouvre l'editeur avec le contenu dechiffre. A la fermeture, le fichier est
 re-chiffre automatiquement.
 
-### Déployer le secret dans le cluster
-
-```bash
-make flux-github-credentials
-```
-
-Cette cible décrypte le fichier SOPS et crée (ou met à jour) le secret
-`github-credentials` dans le namespace `flux-system` via `platform-cicd`.
-
 ### Lire une valeur manuellement
 
 ```bash
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-  sops --decrypt --extract '["github_pat"]' secrets/github-credentials.yaml
+  sops --decrypt --extract '["stringData"][".dockerconfigjson"]' secrets/ghcr-pull-secret.yaml
 ```
 
 ### Ce qui est commité / non commité

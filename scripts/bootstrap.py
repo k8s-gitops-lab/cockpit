@@ -24,6 +24,7 @@ STEPS: list[tuple[str, str]] = [
     ("vm-images", "vm-images"),
     ("cluster-from-images", "cluster-from-images"),
     ("platform-bootstrap", "platform-bootstrap"),
+    ("ghcr-pull-secret", "ghcr-pull-secret"),
     ("gitlab-git-creds", "gitlab-git-creds"),
 ]
 STEP_NAMES = [name for name, _ in STEPS]
