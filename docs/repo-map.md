@@ -19,8 +19,9 @@ repos dans cet ordre.
 
 1. `cluster` fournit le cluster Kubernetes local.
 2. `platform-cicd` installe ArgoCD et applique le root Application.
-3. ArgoCD lit `platform-gitops` et synchronise GitLab, le registry, les routes
-   plateforme et les ApplicationSets applicatifs.
+3. ArgoCD lit `platform-gitops` et synchronise GitLab, les routes plateforme
+   et les ApplicationSets applicatifs (les images applicatives sont poussées
+   sur GHCR, pas sur un registry interne au cluster).
 4. `toolbox` lit l'inventaire de `platform-gitops` pour creer ou mettre a jour
    les projets GitLab et les credentials ArgoCD.
 5. `ci-templates` definit la chaine CI/CD consommee par `helloworld`.

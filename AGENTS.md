@@ -17,8 +17,8 @@ shell exportées et mémorisées dans `.control-plane.env`.
 
 ```bash
 make env               # Afficher les variables exportées (sans les appliquer)
-make platform-up       # Tout provisionner depuis zéro (images Packer + cluster + bootstrap)
-make platform-fast-up  # Cluster depuis images Packer existantes + bootstrap
+make platform-up       # Tout provisionner depuis zéro (images Packer + cluster + bootstrap + git-creds)
+make platform-provision # Comme platform-up mais sans reconstruire les images Packer existantes
 make cluster-up        # Cluster seul (sans images Packer)
 make platform-bootstrap # Bootstrap ArgoCD + plateforme seule
 make platform-bootstrap START_AT=gitlab-tf-credentials # Reprendre à une étape

@@ -19,13 +19,14 @@ les noms de dépôts ci-dessous omettent donc ce préfixe par souci de lisibilit
   applications via des `Application`.
 - **GitLab** (chart Helm officiel, déployé en `Application` ArgoCD) : héberge
   le code et exécute les pipelines CI/CD via GitLab Runner (in-cluster).
-- **Registry Docker interne** (`registry:2`, déployé par ArgoCD) : stocke les
-  images construites par la CI, sans dépendance à un registre externe.
+- **GHCR** (`ghcr.io/poc-devops-elkouhen`) : registre d'images externe où la
+  CI pousse les images construites — pas de registry Docker interne au
+  cluster.
 - **Add-ons réseau** (Traefik, Gateway API, MetalLB, Gateway partagée) :
   déclarés dans Ansible pour que la configuration cluster bas niveau soit
   reproductible avant le bootstrap ArgoCD.
 - **helloworld** : application de référence implémentant le pattern CI/CD
-  décrit dans la spec fonctionnelle : build (Kaniko) → push registry →
+  décrit dans la spec fonctionnelle : build (Kaniko) → push GHCR →
   déploiement (commit GitOps sur les manifests, synchronisé par ArgoCD). Le
   code applicatif et les manifests k8s sont scindés en **deux dépôts GitLab
   séparés** :

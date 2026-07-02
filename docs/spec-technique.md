@@ -5,98 +5,32 @@
 > périmètre produit, voir [`prd.md`](./prd.md). Pour les règles de
 > fonctionnement, voir [`spec-fonctionnelle.md`](./spec-fonctionnelle.md).
 
-## CI/CD : chaîne d'environnements (détail des jobs)
+## CI/CD : chaîne d'environnements (résumé)
 
-Les jobs de déploiement déclarent un `resource_group` par branche manifests
-(`manifests-dev`, `manifests-rec`, `manifests-preprod`, `manifests-prod`) pour
-sérialiser les commits GitOps concurrents. Les jobs continus dev sont
-`interruptible` afin qu'un nouveau merge dans `main` puisse annuler un build ou
-déploiement dev obsolète ; les jobs de release restent non interruptibles.
+La chaîne "build once, promote everywhere" (tag `vX.Y.Z`, build immuable
+kaniko, promotion dev → rec → preprod → prod par `kustomize edit set image`,
+gates manuels + protected environment sur `deploy-prod`, self-heal ArgoCD,
+rollback par `git revert` sur le dépôt manifests) est implémentée et
+documentée en détail dans `ci-templates` (jobs, table d'activation par
+environnement) et `gitlab-projects-iac` (protections de branche, gates
+Terraform). Ce document ne garde que ce qui concerne l'orchestration
+`control-plane` elle-même ; voir :
 
-Chaque environnement GitLab conserve son namespace K8s cible
-(`helloworld-dev/rec/preprod/prod`), mais le déploiement effectif reste piloté
-par ArgoCD via les commits GitOps sur le dépôt manifests. Le job
-`semantic-release` crée aussi une **Release GitLab** native pour `vX.Y.Z`
-(notes générées depuis les Conventional Commits par
-`@semantic-release/release-notes-generator`).
-
-| Job | Activation | Build | Déploiement | Branche manifests / Namespace |
-| :--- | :--- | :--- | :--- | :--- |
-| `deploy-rec` | Auto, dès la création du tag `vX.Y.Z` | Build immuable (kaniko), une seule fois — le job vérifie d'abord via l'API du registry que `IMAGE:vX.Y.Z` n'existe pas déjà et échoue explicitement sinon (pas d'écrasement silencieux d'un retry) | Commit auto (`kustomize edit set image`), branche `rec` [skip ci] ➔ **Sync Auto ArgoCD** | `rec` / `<app>-rec` |
-| `deploy-preprod` *(si `HAS_PREPROD`)* | Gate manuel (`when: manual`), même pipeline | **Aucun** — référence la même image `vX.Y.Z` | Commit auto (`kustomize edit set image`), branche `preprod` [skip ci] ➔ **Sync Auto ArgoCD** | `preprod` / `<app>-preprod` |
-| `deploy-prod` | Gate manuel, restreint via **protected environment** GitLab au rôle `Maintainer` | **Aucun** — référence la même image `vX.Y.Z` | Commit **direct** (`kustomize edit set image`) sur la branche manifests `main` [skip ci] ➔ **Sync Auto ArgoCD** | `main` / `<app>-prod` |
-
-Notes :
-- Créer une "Release" dans l'UI GitLab ne déclenche pas de pipeline
-  supplémentaire : c'est la création du tag git sous-jacent qui déclenche
-  réellement la CI (`rules: if: $CI_COMMIT_TAG`).
-- Le dépôt de code (`<app>`) et le dépôt de manifests (`<app>-iac`)
-  restent deux projets GitLab distincts : le pipeline CI tourne dans `<app>`
-  mais clone et pousse sur `<app>-iac` via `GITLAB_PUSH_TOKEN`.
-- **Gate sur `main` du dépôt de code** (`<app>`) : configuré par Terraform
-  `gitlab-projects-iac` — branche protégée,
-  `push_access_level: No one`, `merge_access_level: Maintainers`. Les
-  features ne peuvent donc atteindre `main` que via une MR mergée par un
-  Maintainer. L'« approbation obligatoire » (nombre d'approbateurs requis,
-  API `approval_rules`) est une fonctionnalité **GitLab Premium** (`403` sur
-  cette instance EE sans licence) : le contrôle d'accès par rôle est
-  l'équivalent disponible en Free/Core.
-- **Gate sur `main` du dépôt manifests : déplacé du git vers la CI.** Plus
-  de MR pour la prod (contrairement à l'ancien modèle) : `deploy-prod` pousse
-  **directement** sur `manifests/main`. Le gate n'est donc plus une
-  protection de branche côté manifests, mais le **protected environment**
-  GitLab côté dépôt de code, qui restreint qui a le droit de jouer le job
-  `deploy-prod`. Conséquence à ne pas oublier à l'implémentation : la
-  protection de branche `main` du dépôt manifests doit autoriser le push du
-  token CI via `push_access_level=40` (Maintainers) — détail de cette
-  valeur (pourquoi `40` et pas un niveau plus restrictif) dans "Limites
-  acceptées" (PRD). `push_access_level: No one` bloquerait aussi ce push
-  légitime, pas seulement les pushs humains ad hoc.
-- Toutes les branches d'environnement du dépôt manifests (`dev`/`rec`/
-  `preprod`?/`main`) sont désormais mises à jour de la même façon : commit
-  direct de la CI, sans MR. Le seul gate humain restant est le clic sur le
-  job `deploy-prod`, restreint par le protected environment.
-- **Manifestes modifiés via Kustomize**, pas par édition de texte brute : un
-  seul `kustomization.yaml` à la racine du dépôt manifests (pas de
-  `base/`/overlay séparés — chaque branche d'environnement *est* déjà
-  l'overlay, le modèle "une branche par environnement" remplit ce rôle), mis
-  à jour par `kustomize edit set image <image>:<tag>` (déclaratif,
-  idempotent) plutôt qu'un `sed` sur le YAML. Le tag par défaut commité au
-  seed est une **version réelle déjà construite** (jamais un nom
-  d'environnement type `:dev`/`:rec`/`:preprod` qui ne correspondrait à
-  aucune image existante avant le premier déploiement réel sur cette
-  branche) — élimine les `ErrImagePull` au bootstrap. Prêt pour le futur
-  monorepo multi-services (`images:` peut lister plusieurs services en une
-  seule commande).
-- **`Application` ArgoCD avec `automated: { prune: true, selfHeal: true }`**
-  sur tous les environnements (dev/rec/preprod/prod) : ArgoCD ne se contente
-  pas de déployer depuis git, il **corrige activement** toute dérive du
-  cluster par rapport à l'état déclaré (un `kubectl edit`/`kubectl patch`
-  manuel sur `helloworld-prod` est automatiquement annulé). C'est ce qui
-  fait du dépôt manifests la source de vérité *continue* du cluster, pas
-  seulement son état initial — condition nécessaire à une philosophie
-  GitOps poussée jusqu'au bout.
-- **Rollback prod** : un `git revert` du commit visé sur `main` du dépôt
-  manifests, poussé par un job CI générique (gate manuel) restreint par le
-  même protected environment que `deploy-prod` — pas de job dédié
-  paramétré par une version à reconstruire. Cohérent avec "le dépôt
-  manifests définit l'état" : revenir à un état antérieur, c'est juste
-  revenir à un commit antérieur. Ne dépend pas de la rétention des anciens
-  pipelines GitLab CI (pas besoin de rejouer un ancien job).
+- `ci-templates/docs/spec-technique.md` : détail des jobs, `resource_group`,
+  gates manuels/protected environment, format des commits GitOps.
+- `gitlab-projects-iac/docs/spec-technique.md` : protections de branche,
+  gates Terraform sur `main`.
+- `platform-gitops/docs/spec-technique.md` : mécanique ArgoCD
+  (`Application`, `automated.selfHeal`, structure des manifests).
 
 ## Monorepo multi-services : implémentation
 
-**Statut : implémenté.** `helloworld` est ce monorepo multi-services : un
-seul dépôt de code (`helloworld`), deux sous-dossiers/modules
-`helloworld-svc` (API FastAPI) et `helloworld-gui` (frontend statique
-nginx, qui appelle l'API via `helloworld-svc` en DNS interne du namespace,
-avec un préfixe HTTP proxié — pas de configuration d'URL par stage). Le fichier
-`platform-gitops/argocd/apps/helloworld/app.yaml` porte `code:` au niveau app (pas par service) et `services: [...]` ne liste
-plus que `name`/`image` par service ; Terraform `gitlab-projects-iac` crée les
-projets GitLab applicatifs ;
-`ci-templates/gitlab-ci.yml` boucle sur `${SERVICES}` (liste
-`<service>=<image>` espacée) pour le build (un `Dockerfile` par
-sous-dossier) et le déploiement (plusieurs `kustomize edit set image`).
+**Statut : implémenté**, illustré par `helloworld` (deux sous-dossiers
+`helloworld-svc`/`helloworld-gui`, un `Dockerfile` par service, `services:`
+listé dans `platform-gitops/argocd/apps/helloworld/app.yaml`). Détail du
+mécanisme (boucle CI sur `${SERVICES}`, plusieurs `kustomize edit set
+image`) : `ci-templates/docs/spec-technique.md` et
+`helloworld/docs/spec-technique.md`.
 
 ## Scaling : implémentation
 
@@ -141,9 +75,11 @@ sous-dossier) et le déploiement (plusieurs `kustomize edit set image`).
     configure les gates, les variables et les protections GitLab.
 - **Add-ons plateforme sous ArgoCD** : le root Application synchronise aussi
   les `Application` déclarées dans `argocd/managed/` pour les composants de
-  plateforme applicative : GitLab, agent Kubernetes GitLab, registry interne
-  et exposition HTTP d'ArgoCD. Les add-ons cluster bas niveau (Gateway API,
-  MetalLB, Traefik et Gateway partagée) sont provisionnés par Ansible.
+  plateforme applicative : GitLab et exposition HTTP d'ArgoCD. Les images
+  applicatives sont poussées sur GHCR (`ghcr.io/poc-devops-elkouhen`), pas
+  sur un registry interne au cluster. Les add-ons cluster bas niveau
+  (Gateway API, MetalLB, Traefik et Gateway partagée) sont provisionnés par
+  Ansible.
 
 Modifier un fichier `platform-gitops/argocd/apps/<app>/app.yaml` se fait via une pull request sur le dépôt
 GitHub `platform-gitops`. Au merge, un job CI de `platform-cicd` régénère
@@ -178,9 +114,6 @@ dans Ansible, pas dans ArgoCD :
 - **HTTPRoute par service exposé** : les anciens `Ingress` applicatifs doivent
   être remplacés par des `HTTPRoute` qui pointent vers les `Service`
   Kubernetes de l'app.
-- **Registry interne** : `argocd/managed/registry.yaml` déploie le registry
-  Docker interne depuis `argocd/platform/registry/`; le `Makefile` ne fait plus
-  de `kubectl apply` direct sur ce composant.
 - **UI ArgoCD** : `argocd/managed/argocd-ui.yaml` déploie l'exposition HTTP
   ArgoCD depuis `argocd/platform/argocd-ui/`. La cible `make argocd-ingress`
   ne fait plus qu'activer le mode HTTP côté serveur ArgoCD.
@@ -191,61 +124,41 @@ mixte sans décision explicite.
 
 ### Ajouter une application : séquence technique
 
-Pour une app standard, l'intégration attendue côté plateforme est :
-
-1. Créer les sources locales :
-   - `<app>/` pour le code applicatif, avec un sous-dossier par service et un
-     `Dockerfile` dans chaque sous-dossier ;
-   - `<app>-iac/` pour les manifests, avec le chemin k8s déclaré dans
-     `manifests.path` et un `kustomization.yaml`.
-2. Ajouter l'app dans `platform-gitops/argocd/apps/<app>/app.yaml`.
-3. Ouvrir une pull request sur le dépôt GitHub `platform-gitops`. Au merge,
-   le job CI de `platform-cicd` régénère `argocd/managed/apps-appset.yaml`
-   et le commite sur `main` — ArgoCD détecte le changement et converge.
-4. Exécuter Terraform `gitlab-projects-iac` pour créer ou mettre à jour les
-   projets GitLab, variables CI/CD et protections.
+Le parcours complet (côté équipe applicative) est décrit dans
+[`../README.md`](../README.md#parcours-2--une-équipe-applicative-crée-un-projet).
+Résumé technique : sources locales (`<app>/`, `<app>-iac/`) → entrée dans
+`platform-gitops/argocd/apps/<app>/app.yaml` via PR → au merge, régénération
+`argocd/managed/apps-appset.yaml` (job CI `platform-cicd`) et de
+`gitlab-projects-iac/terraform/apps.auto.tfvars.json` (job CI
+`platform-gitops`, script `toolbox/scripts/render-gitlab-projects.py`) →
+Terraform crée/actualise les projets GitLab.
 
 ## Outillage partagé
 
-Les scripts de bootstrap restent présents dans `scripts/` afin que
-`make bootstrap`, `make gitlab-tf-credentials`, `make argocd-apps-render` et
-`make init-project` continuent de fonctionner depuis `platform-cicd` sans
-dépendre d'un repo frère. `control-plane` orchestre ces cibles via son propre
-`Makefile`.
-
-Les utilitaires d'onboarding applicatif restants vivent dans `toolbox` et
-s'appellent avec `PLATFORM_REPO_ROOT` pointant vers `platform-gitops`. La
-génération des manifests ArgoCD (`render-argocd-apps.py`) est exécutée par
-`platform-cicd` via un job CI au merge sur `platform-gitops`.
+`control-plane/scripts/` ne contient que les scripts propres à
+l'orchestration locale (`bootstrap.py`, `export-env.py`,
+`gitlab-git-creds.py`, scripts workspace `clone-github-org.sh` et
+`commit-*.sh`). Les scripts de bootstrap plateforme
+(`gitlab-tf-credentials.py`, `render-argocd-apps.py`, `gitlab-runner-token.py`,
+`gitlab-dex-oauth-app.py`) vivent dans `platform-cicd/scripts/` et sont
+appelés par `control-plane` via `make -C ../platform-cicd <cible>` (voir
+`Makefile`). Les utilitaires d'onboarding applicatif
+(`init-project.py`, `render-gitlab-projects.py`, `argocd-repo-creds.py`)
+vivent dans `toolbox/scripts/` et s'appellent avec `PLATFORM_REPO_ROOT`
+pointant vers `platform-gitops`.
 
 ## Dette IaC connue
 
-La chaîne CI/CD principale (`make bootstrap`, GitLab, ArgoCD, registry,
-`helloworld`, inventaire multi-apps) est
-maintenant automatisée dans le dépôt.
-Les anciennes interventions manuelles de bootstrap ont été absorbées par les
-scripts versionnés localement et Terraform `gitlab-projects-iac` :
+La chaîne CI/CD principale (bootstrap ArgoCD/GitLab, `helloworld`,
+inventaire multi-apps) est automatisée. Le détail des scripts de bootstrap
+plateforme est documenté dans `platform-cicd/docs/spec-technique.md`.
 
-- `platform-cicd/scripts/gitlab-tf-credentials.py` crée le PAT/Secret consommé
-  par Terraform après que GitLab est prêt.
-- `scripts/gitlab-runner-token.py` crée le secret runner nécessaire sans action UI.
-- `platform-cicd/scripts/render-argocd-apps.py` génère les `AppProject` et l'`ApplicationSet`
-  depuis `platform-gitops/argocd/apps/<app>/app.yaml`,
-  déclenché automatiquement par un job CI au merge d'une PR sur `platform-gitops`.
-
-L'ensemble des scripts d'outillage est écrit en **Python 3** (anciennement
-Ruby et Bash). Les scripts qui lisent ou écrivent du YAML
-(`filter-argocd-install.py`, `render-argocd-apps.py`) nécessitent `pyyaml`
-(`pip3 install -r requirements.txt`) ; `init-project.py`,
-`gitlab-tf-credentials.py` et `gitlab-runner-token.py` fonctionnent sans dépendance
-externe. Dans la toolbox, `PLATFORM_REPO_ROOT` remplace les anciens chemins
-implicites basés sur l'emplacement du script.
-- `argocd/managed/` déclare les add-ons plateforme applicative synchronisés par
-  ArgoCD ; les add-ons cluster bas niveau vivent dans Ansible.
-- `ansible/roles/kubernetes-platform` installe Gateway API, MetalLB, Traefik et
-  la Gateway partagée pour le cluster Kubernetes Vagrant.
-- Le pipeline générique couvre le tag unique `vX.Y.Z`, le build once/promote
-  everywhere, les gates manuels, le rollback prod et le self-heal ArgoCD.
+- `argocd/managed/` (dans `platform-gitops`) déclare les add-ons plateforme
+  applicative synchronisés par ArgoCD ; les add-ons cluster bas niveau
+  vivent dans `cluster/ansible`.
+- Le pipeline générique (`ci-templates`) couvre le tag unique `vX.Y.Z`, le
+  build once/promote everywhere, les gates manuels, le rollback prod et le
+  self-heal ArgoCD.
 
 Dette active hors chaîne CI/CD applicative :
 
@@ -275,19 +188,15 @@ Dette active hors chaîne CI/CD applicative :
   contrôleur HTTP déclaré (Traefik via Gateway API)
   avec les hosts `*.192.168.33.100.nip.io`, pas par `kubectl port-forward` direct
   vers un service, sous peine de mismatch Host/Origin.
-- Registry interne en HTTP non sécurisé : nécessite `node-trust-registry`
-  (config containerd) côté nœud Kubernetes pour que les pulls/pushs
-  fonctionnent.
-- Le pull d'image par kubelet/containerd s'exécute dans le namespace réseau du
-  **nœud**, pas dans celui d'un pod : il n'a donc pas accès à CoreDNS pour
-  résoudre `registry.registry.svc.cluster.local`. Nécessite `node-registry-dns`
-  (entrée hosts statique sur le nœud vers le ClusterIP du Service) — à
-  relancer si le ClusterIP du registry change (recréation du Service).
+- Les images applicatives sont poussées sur GHCR (registre externe,
+  HTTPS) : pas de configuration `node-trust-registry`/résolution DNS
+  interne au cluster à maintenir pour les pulls/pushs, contrairement à un
+  registry interne au cluster.
 
 ## Annexe : cluster Ansible/k8s
 
 `cluster` (Packer, Vagrant et playbooks Ansible) fournit le socle
-Kubernetes local sur lequel la chaîne CI/CD `helloworld`, ArgoCD, GitLab et le
-registry sont déployés. La séparation de responsabilités reste volontaire :
+Kubernetes local sur lequel la chaîne CI/CD `helloworld`, ArgoCD et GitLab
+sont déployés. La séparation de responsabilités reste volontaire :
 `cluster` construit et initialise le socle Kubernetes, `platform-cicd` déploie
 la plateforme applicative, et `control-plane` orchestre le parcours complet.

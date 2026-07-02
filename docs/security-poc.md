@@ -6,15 +6,10 @@ defaut d'un environnement partage ou durable.
 
 ## HTTP interne
 
-GitLab, ArgoCD et le registry sont exposes en HTTP sur `*.nip.io`.
-Pour une plateforme durable, remplacer par HTTPS, certificats geres et policy
-d'entree explicite.
-
-## Registry insecure
-
-Les jobs Kaniko utilisent `--insecure` et `--skip-tls-verify` pour pousser vers
-le registry interne. Pour une plateforme durable, installer une CA de confiance
-dans les runners et retirer ces options.
+GitLab et ArgoCD sont exposes en HTTP sur `*.nip.io`. Pour une plateforme
+durable, remplacer par HTTPS, certificats geres et policy d'entree explicite.
+Les images applicatives sont poussees sur GHCR (HTTPS) : pas de registry
+interne au cluster a securiser.
 
 ## Comptes bootstrap
 

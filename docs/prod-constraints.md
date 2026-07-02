@@ -17,8 +17,8 @@ more realistic production setup.
 
 ## Security
 
-- Use real TLS everywhere: GitLab, ArgoCD, registry, gateways and application
-  endpoints.
+- Use real TLS everywhere: GitLab, ArgoCD, gateways and application
+  endpoints (GHCR, the external image registry, already enforces TLS).
 - Integrate cert-manager or enterprise PKI.
 - Use SSO/OIDC for ArgoCD and GitLab.
 - Avoid shared admin/root users for normal operations.
@@ -70,7 +70,8 @@ more realistic production setup.
 
 ## Reliability
 
-- Test backup and restore for GitLab, registry, ArgoCD and stateful workloads.
+- Test backup and restore for GitLab, ArgoCD and stateful workloads (GHCR
+  retention/backup is GitHub's responsibility, not this platform's).
 - Define disaster recovery targets: RPO and RTO.
 - Define multi-zone or multi-region expectations when needed.
 - Require readiness and liveness probes.
