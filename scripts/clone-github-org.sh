@@ -7,7 +7,7 @@ Usage:
 
 Options:
   -o, --org ORG          Organisation GitHub a cloner.
-                         Par defaut: poc-devops-elkouhen
+                         Par defaut: k8s-gitops-lab
   -d, --dest DIR         Dossier parent de destination.
                          Par defaut: parent du repo control-plane
   --ssh                  Clone via SSH.
@@ -27,7 +27,7 @@ Exemples:
 USAGE
 }
 
-org="poc-devops-elkouhen"
+org="k8s-gitops-lab"
 dest=".."
 protocol="https"
 update_existing=false

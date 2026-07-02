@@ -47,8 +47,8 @@ image`) : `ci-templates/docs/spec-technique.md` et
   bumpé sa `ref`. Choix délibéré au prix d'un bump manuel par app : isole le
   rayon d'impact d'une régression du template, plutôt que de la propager
   instantanément à toutes les apps.
-- **Descriptors explicites `platform-gitops/argocd/apps/<app>/app.yaml`** :
-  chaque application a son propre répertoire dans
+- **Descriptors explicites `platform-gitops/argocd/apps/<app>.yaml`** :
+  chaque application a son propre fichier plat dans
   `platform-gitops/argocd/apps/`. L'ensemble reste
   la source de vérité des
   projets GitLab (`code.projectPath`, `manifests.projectPath`,
@@ -76,12 +76,12 @@ image`) : `ci-templates/docs/spec-technique.md` et
 - **Add-ons plateforme sous ArgoCD** : le root Application synchronise aussi
   les `Application` déclarées dans `argocd/managed/` pour les composants de
   plateforme applicative : GitLab et exposition HTTP d'ArgoCD. Les images
-  applicatives sont poussées sur GHCR (`ghcr.io/poc-devops-elkouhen`), pas
+  applicatives sont poussées sur GHCR (`ghcr.io/k8s-gitops-lab`), pas
   sur un registry interne au cluster. Les add-ons cluster bas niveau
   (Gateway API, MetalLB, Traefik et Gateway partagée) sont provisionnés par
   Ansible.
 
-Modifier un fichier `platform-gitops/argocd/apps/<app>/app.yaml` se fait via une pull request sur le dépôt
+Modifier un fichier `platform-gitops/argocd/apps/<app>.yaml` se fait via une pull request sur le dépôt
 GitHub `platform-gitops`. Au merge, un job CI de `platform-cicd` régénère
 automatiquement `argocd/managed/apps-appset.yaml` et commite le résultat sur
 `main` : ArgoCD lit Git, pas le disque local. Pendant l'amorçage, certaines
@@ -127,7 +127,7 @@ mixte sans décision explicite.
 Le parcours complet (côté équipe applicative) est décrit dans
 [`../README.md`](../README.md#parcours-2--une-équipe-applicative-crée-un-projet).
 Résumé technique : sources locales (`<app>/`, `<app>-iac/`) → entrée dans
-`platform-gitops/argocd/apps/<app>/app.yaml` via PR → au merge, régénération
+`platform-gitops/argocd/apps/<app>.yaml` via PR → au merge, régénération
 `argocd/managed/apps-appset.yaml` (job CI `platform-cicd`) et de
 `gitlab-projects-iac/terraform/apps.auto.tfvars.json` (job CI
 `platform-gitops`, script `toolbox/scripts/render-gitlab-projects.py`) →
@@ -142,10 +142,11 @@ l'orchestration locale (`bootstrap.py`, `export-env.py`,
 (`gitlab-tf-credentials.py`, `render-argocd-apps.py`, `gitlab-runner-token.py`,
 `gitlab-dex-oauth-app.py`) vivent dans `platform-cicd/scripts/` et sont
 appelés par `control-plane` via `make -C ../platform-cicd <cible>` (voir
-`Makefile`). Les utilitaires d'onboarding applicatif
-(`init-project.py`, `render-gitlab-projects.py`, `argocd-repo-creds.py`)
-vivent dans `toolbox/scripts/` et s'appellent avec `PLATFORM_REPO_ROOT`
-pointant vers `platform-gitops`.
+`Makefile`). Les utilitaires d'administration applicative
+(`render-gitlab-projects.py`, `argocd-repo-creds.py`) vivent dans
+`toolbox/scripts/` et s'appellent avec `PLATFORM_REPO_ROOT` pointant vers
+`platform-gitops`. L'ajout d'une app ne passe pas par un script : c'est une
+pull/merge request directe sur `platform-gitops`.
 
 ## Dette IaC connue
 
@@ -155,7 +156,7 @@ plateforme est documenté dans `platform-cicd/docs/spec-technique.md`.
 
 - `argocd/managed/` (dans `platform-gitops`) déclare les add-ons plateforme
   applicative synchronisés par ArgoCD ; les add-ons cluster bas niveau
-  vivent dans `cluster/ansible`.
+  vivent dans `infrastructure/ansible`.
 - Le pipeline générique (`ci-templates`) couvre le tag unique `vX.Y.Z`, le
   build once/promote everywhere, les gates manuels, le rollback prod et le
   self-heal ArgoCD.
@@ -193,10 +194,10 @@ Dette active hors chaîne CI/CD applicative :
   interne au cluster à maintenir pour les pulls/pushs, contrairement à un
   registry interne au cluster.
 
-## Annexe : cluster Ansible/k8s
+## Annexe : infrastructure Ansible/k8s
 
-`cluster` (Packer, Vagrant et playbooks Ansible) fournit le socle
+`infrastructure` (Packer, Vagrant et playbooks Ansible) fournit le socle
 Kubernetes local sur lequel la chaîne CI/CD `helloworld`, ArgoCD et GitLab
 sont déployés. La séparation de responsabilités reste volontaire :
-`cluster` construit et initialise le socle Kubernetes, `platform-cicd` déploie
+`infrastructure` construit et initialise le socle Kubernetes, `platform-cicd` déploie
 la plateforme applicative, et `control-plane` orchestre le parcours complet.

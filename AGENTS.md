@@ -43,9 +43,9 @@ respecter cet ordre de préférence :
 
 Exemple appliqué : les étapes de bootstrap ArgoCD/Flux (CA trust, install,
 ingress, secret SOPS) vivent dans le rôle `platform_bootstrap` de
-`cluster/ansible/` (tout le code Ansible du POC est fusionné dans ce dépôt) ;
+`infrastructure/ansible/` (tout le code Ansible du POC est fusionné dans ce dépôt) ;
 le Makefile de `platform-cicd` ne fait qu'appeler, en relatif,
-`ansible-playbook playbook-platform.yml --tags <étape>` dans `cluster/ansible`.
+`ansible-playbook playbook-platform.yml --tags <étape>` dans `infrastructure/ansible`.
 
 **Orchestration de plusieurs tâches** : quand il s'agit d'enchaîner plusieurs
 étapes (séquence, reprise après échec, dépendances entre étapes), préférer
@@ -54,9 +54,9 @@ l'orchestration Ansible (playbook avec plusieurs tâches/rôles tagués,
 reste pour exposer un point d'entrée unique à l'opérateur (ex. `make
 bootstrap`), pas pour porter la logique de séquencement elle-même.
 
-**Images Packer** : le code déployé dans les images Packer (`cluster/packer`)
+**Images Packer** : le code déployé dans les images Packer (`infrastructure/packer`)
 doit passer par le `provisioner "ansible"` (réutilisant les rôles/playbooks
-existants), jamais par un `provisioner "shell"` ad hoc — cf. `cluster/AGENTS.md`.
+existants), jamais par un `provisioner "shell"` ad hoc — cf. `infrastructure/AGENTS.md`.
 
 ## Structure du code Ansible
 
@@ -82,7 +82,7 @@ Ne jamais modifier les fichiers directement dans GitLab. Toujours :
 
 ## Ce qu'il ne faut pas faire
 
-- Ne pas modifier les dépôts voisins (`cluster`, `platform-cicd`, etc.)
+- Ne pas modifier les dépôts voisins (`infrastructure`, `platform-cicd`, etc.)
   directement depuis ce dépôt — passer par leurs propres Makefiles.
 - Ne pas hardcoder des valeurs de versions dans les Makefiles ; les lire depuis
   les variables exportées par `export-env.py`.

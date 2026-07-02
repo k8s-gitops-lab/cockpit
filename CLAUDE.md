@@ -19,5 +19,5 @@ Toujours :
    ```
 
 Les remotes disponibles dans tous les repos du POC :
-- `origin` → `https://github.com/poc-devops-elkouhen/<repo>`
+- `origin` → `https://github.com/k8s-gitops-lab/<repo>`
 - `gitlab` → `http(s)://gitlab.192.168.33.100.nip.io/root/<repo>`

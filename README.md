@@ -10,7 +10,7 @@ propre repo.
 `control-plane` fournit seulement un profil local pour enchaîner les commandes
 des repos specialises avec des variables explicites :
 
-- `cluster` : socle Kubernetes, storage, Gateway API, MetalLB, Traefik.
+- `infrastructure` : socle Kubernetes, storage, Gateway API, MetalLB, Traefik.
 - `platform-cicd` : bootstrap ArgoCD, credentials GitLab et runner.
 - `platform-gitops` : configuration suivie en continu par ArgoCD (dont GitLab).
 - `toolbox` : utilitaires operateur hors bootstrap principal.
@@ -52,7 +52,7 @@ Une fois la commande terminée :
 
 Pour le détail de chaque étape :
 
-- `cluster/AGENTS.md` : socle Kubernetes (Packer, Vagrant, Ansible).
+- `infrastructure/AGENTS.md` : socle Kubernetes (Packer, Vagrant, Ansible).
 - `platform-cicd/AGENTS.md` : bootstrap ArgoCD, GitLab et credentials.
 - `platform-gitops/AGENTS.md` : ce qu'ArgoCD synchronise en continu ensuite.
 
@@ -64,9 +64,8 @@ l'opérateur).
 1. Écrire le code de l'app (`<app>/`) et son dépôt de manifests
    (`<app>-iac/`), en réutilisant `ci-templates` pour la CI (voir
    `helloworld`/`helloworld-iac` comme exemple de référence).
-2. Lancer `toolbox/scripts/init-project.py` pour déclarer l'app — ce script
-   ouvre une pull request sur `platform-gitops` ajoutant
-   `argocd/apps/<app>/app.yaml`.
+2. Ouvrir une pull request directement sur `platform-gitops` ajoutant
+   `argocd/apps/<app>.yaml` (nom, description, services, `hasPreprod`).
 3. Au merge de cette PR, la chaîne se déclenche automatiquement : régénération
    des manifests ArgoCD (`ApplicationSet`/`AppProject`), régénération de
    l'inventaire Terraform (`apps.auto.tfvars.json`), création des projets

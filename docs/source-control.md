@@ -7,10 +7,11 @@ Le POC distingue deux niveaux de depots.
 Les repos du workspace sont geres sur GitHub. C'est l'amont de developpement :
 
 - `control-plane`
-- `cluster`
+- `infrastructure`
 - `platform-cicd`
 - `platform-gitops`
 - `toolbox`
+- `gitlab-projects-iac`
 - `ci-templates`
 - `helloworld`
 - `helloworld-iac`
@@ -30,14 +31,11 @@ cluster utilisent ces depots GitLab.
 `platform-gitops` sur GitHub. C'est ce depot qui recoit les branches et pull
 requests d'evolution de l'inventaire GitOps.
 
-```sh
-PLATFORM_REPO_URL=https://github.com/poc-devops-elkouhen/platform-gitops.git \
-  GITHUB_TOKEN=<token> \
-  python3 toolbox/scripts/init-project.py helloworld
-```
+L'ajout d'une app se fait par pull request directe sur `platform-gitops`
+(ajout de `argocd/apps/<app>.yaml`), pas via un script toolbox.
 
 ```sh
-PLATFORM_REPO_URL=https://github.com/poc-devops-elkouhen/platform-gitops.git \
+PLATFORM_REPO_URL=https://github.com/k8s-gitops-lab/platform-gitops.git \
   GITHUB_TOKEN=<token> \
   python3 toolbox/scripts/delete-project.py helloworld
 ```
@@ -61,7 +59,7 @@ de l'inventaire GitOps restent proposees sur GitHub via `PLATFORM_REPO_URL`.
 Concretement :
 
 - `PLATFORM_REPO_URL` doit pointer vers
-  `https://github.com/poc-devops-elkouhen/platform-gitops.git`.
+  `https://github.com/k8s-gitops-lab/platform-gitops.git`.
 - Les depots applicatifs lus par ArgoCD utilisent l'URL interne GitLab
   `http://gitlab-webservice-default.gitlab.svc.cluster.local:8181/...`.
 - Les references GitLab internes dans l'ApplicationSet applicatif concernent

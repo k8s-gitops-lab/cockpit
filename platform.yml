@@ -10,9 +10,9 @@ platform:
   argocd:
     namespace: argocd
   registry:
-    host: ghcr.io/poc-devops-elkouhen
+    host: ghcr.io/k8s-gitops-lab
   repositories:
-    cluster: ../cluster
+    infrastructure: ../infrastructure
     platform: ../platform-cicd
     gitops: ../platform-gitops
     toolbox: ../toolbox

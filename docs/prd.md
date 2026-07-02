@@ -13,13 +13,13 @@ autohébergée sur un cluster Kubernetes local. Tous les projets GitLab sont
 créés sous le namespace personnel `root` (seul utilisateur de cette instance) ;
 les noms de dépôts ci-dessous omettent donc ce préfixe par souci de lisibilité.
 
-- **cluster** : cluster Kubernetes local Vagrant/kubeadm, avec images VM
+- **infrastructure** : cluster Kubernetes local Vagrant/kubeadm, avec images VM
   construites par Packer.
 - **ArgoCD** : GitOps, pilote le déploiement des composants plateforme et des
   applications via des `Application`.
 - **GitLab** (chart Helm officiel, déployé en `Application` ArgoCD) : héberge
   le code et exécute les pipelines CI/CD via GitLab Runner (in-cluster).
-- **GHCR** (`ghcr.io/poc-devops-elkouhen`) : registre d'images externe où la
+- **GHCR** (`ghcr.io/k8s-gitops-lab`) : registre d'images externe où la
   CI pousse les images construites — pas de registry Docker interne au
   cluster.
 - **Add-ons réseau** (Traefik, Gateway API, MetalLB, Gateway partagée) :

@@ -23,29 +23,29 @@ env: ## Affiche les variables exportees depuis platform.yml
 
 vm-images-build: ## Construit les boxes Vagrant k8s-master/k8s-worker via Packer
 	@$(ENV); \
-	echo "==> control-plane: vm-images-build -> make -C $$CLUSTER_REPO/packer build"; \
-	$(MAKE_BIN) -C "$$CLUSTER_REPO/packer" build
+	echo "==> control-plane: vm-images-build -> make -C $$INFRASTRUCTURE_REPO/packer build"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO/packer" build
 
 vm-images-add: ## Ajoute les boxes Packer construites au registre Vagrant local
 	@$(ENV); \
 	echo "==> control-plane: vm-images-add -> vagrant box add"; \
-	vagrant box add k8s-master "$$CLUSTER_REPO/packer/output/k8s-master/package.box" --force; \
-	vagrant box add k8s-worker "$$CLUSTER_REPO/packer/output/k8s-worker/package.box" --force
+	vagrant box add k8s-master "$$INFRASTRUCTURE_REPO/packer/output/k8s-master/package.box" --force; \
+	vagrant box add k8s-worker "$$INFRASTRUCTURE_REPO/packer/output/k8s-worker/package.box" --force
 
 vm-images: vm-images-build vm-images-add ## Construit et enregistre les images VM du cluster
 
-cluster-up: ## Provisionne le socle cluster via ../cluster
+cluster-up: ## Provisionne le socle cluster via ../infrastructure
 	@$(ENV); \
-	echo "==> control-plane: cluster-up -> make -C $$CLUSTER_REPO up"; \
-	$(MAKE_BIN) -C "$$CLUSTER_REPO" up \
+	echo "==> control-plane: cluster-up -> make -C $$INFRASTRUCTURE_REPO up"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" up \
 	  gateway_api_version="$$GATEWAY_API_VERSION" \
 	  metallb_chart_version="$$METALLB_CHART_VERSION" \
 	  traefik_chart_version="$$TRAEFIK_CHART_VERSION"
 
 cluster-from-images: vm-images-add ## Deploie le cluster depuis les boxes Packer k8s-master/k8s-worker
 	@$(ENV); \
-	echo "==> control-plane: cluster-from-images -> make -C $$CLUSTER_REPO create-cluster"; \
-	$(MAKE_BIN) -C "$$CLUSTER_REPO" create-cluster \
+	echo "==> control-plane: cluster-from-images -> make -C $$INFRASTRUCTURE_REPO create-cluster"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" create-cluster \
 	  gateway_api_version="$$GATEWAY_API_VERSION" \
 	  metallb_chart_version="$$METALLB_CHART_VERSION" \
 	  traefik_chart_version="$$TRAEFIK_CHART_VERSION"
@@ -86,13 +86,13 @@ gitlab-git-creds: ## Cree un PAT GitLab root et l'injecte dans git-credential po
 
 platform-down: ## Eteint les VMs de la plateforme sans les detruire
 	@$(ENV); \
-	echo "==> control-plane: platform-down -> make -C $$CLUSTER_REPO down"; \
-	$(MAKE_BIN) -C "$$CLUSTER_REPO" down
+	echo "==> control-plane: platform-down -> make -C $$INFRASTRUCTURE_REPO down"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" down
 
 platform-destroy: ## Detruit les VMs de la plateforme
 	@$(ENV); \
-	echo "==> control-plane: platform-destroy -> make -C $$CLUSTER_REPO destroy"; \
-	$(MAKE_BIN) -C "$$CLUSTER_REPO" destroy
+	echo "==> control-plane: platform-destroy -> make -C $$INFRASTRUCTURE_REPO destroy"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" destroy
 	@rm -f .bootstrap-state.json
 
 gitlab-tf-credentials: ## Cree/rotate le PAT GitLab consomme par Terraform
@@ -123,12 +123,12 @@ gitlab-password: ## Affiche le mot de passe root initial de GitLab
 	$(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" gitlab-password \
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE"
 
-ghcr-pull-secret: ## Deploie secrets/ghcr-pull-secret.yaml (SOPS) comme secret source dans argocd ; chaque app le recopie dans ses namespaces via sa conf ArgoCD (Jobs generes par render-argocd-apps.py)
+ghcr-pull-secret: ## Deploie secrets/ghcr-pull-secret.yaml (SOPS, via Ansible) comme secret source dans argocd ; chaque app le recopie dans ses namespaces via sa conf ArgoCD (Jobs generes par render-argocd-apps.py)
 	@$(ENV); \
-	echo "==> control-plane: ghcr-pull-secret dans $$ARGOCD_NAMESPACE"; \
-	SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-	  sops --decrypt secrets/ghcr-pull-secret.yaml \
-	  | kubectl apply -n "$$ARGOCD_NAMESPACE" -f -
+	echo "==> control-plane: ghcr-pull-secret -> ansible-playbook --tags ghcr-pull-secret"; \
+	cd "$$INFRASTRUCTURE_REPO/ansible" && ansible-playbook playbook-platform.yml --tags ghcr-pull-secret \
+	  -e argocd_namespace="$$ARGOCD_NAMESPACE" \
+	  -e control_plane_root="$(CURDIR)"
 
 status: ## Affiche l'etat ArgoCD depuis ../platform-cicd
 	@$(ENV); echo "==> control-plane: status -> make -C $$PLATFORM_REPO_ROOT status"; $(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" status ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"

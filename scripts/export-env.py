@@ -45,7 +45,7 @@ def main() -> None:
         "TRAEFIK_CHART_VERSION": versions["traefikChart"],
         "METALLB_CHART_VERSION": versions["metallbChart"],
         "GATEWAY_API_VERSION": versions["gatewayApi"],
-        "CLUSTER_REPO": repos["cluster"],
+        "INFRASTRUCTURE_REPO": repos["infrastructure"],
         "PLATFORM_REPO_ROOT": repos["platform"],
         "GITOPS_REPO_ROOT": repos["gitops"],
         "TOOLBOX_REPO": repos["toolbox"],
