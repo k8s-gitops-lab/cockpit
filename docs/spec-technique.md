@@ -36,7 +36,9 @@ image`) : `ci-templates/docs/spec-technique.md` et
 
 - **Repo `ci-templates`** (GitLab) : héberge le pipeline générique décrit
   ci-dessus. Source locale : `ci-templates/`, projet créé par Terraform
-  `gitlab-projects-iac` avec une ref versionnée déclarée par application.
+  `gitlab-projects-iac` dans le groupe GitLab `shared-ci` (indépendant du
+  groupe `infra` des projets applicatifs), avec une ref versionnée déclarée
+  par application.
   Le `.gitlab-ci.yml` de chaque app se réduit à un `include` de
   ce template, **`ref` épinglée à une version** (ex. `v1.3.0`, pas `main`)
   + ses variables propres (`IMAGE`, `MANIFESTS_PROJECT_PATH`, `SERVICES`,
