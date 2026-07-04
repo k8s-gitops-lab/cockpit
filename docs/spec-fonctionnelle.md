@@ -2,7 +2,7 @@
 
 > Les règles de fonctionnement du système : flow Git, principes CI/CD,
 > règles du monorepo multi-services. Pour la vision/le périmètre produit
-> (intention, objectif du scaling, non-objectifs assumés), voir
+> (intention, objectif de l'industrialisation, non-objectifs assumés), voir
 > [`prd.md`](./prd.md). Pour le détail d'implémentation (jobs, scripts,
 > Makefile, contraintes infra), voir [`spec-technique.md`](./spec-technique.md).
 
@@ -63,7 +63,7 @@ opération registry.
 
 Chaque app déclare un drapeau `HAS_PREPROD` (true/false) qui active ou non
 le stade intermédiaire `preprod` — les deux variantes partagent le même
-pipeline générique (cf. "Scaling").
+pipeline générique (cf. "Industrialisation").
 
 **1. Dev** — déclencheur séparé, continu : chaque merge dans `main` build
 une image mutable (`<sha-court>` et `dev`) et déploie automatiquement vers
@@ -113,9 +113,9 @@ sous-dossier avec son propre `Dockerfile`.
 Terraform `gitlab-projects-iac`, `ci-templates/gitlab-ci.yml`) dans la spec
 technique.
 
-## Scaling : pattern réplicable pour plusieurs apps
+## Industrialisation : pattern réplicable pour plusieurs apps
 
-Cf. "Objectif du scaling" dans le [PRD](./prd.md) pour le pourquoi. Le
+Cf. "Objectif de l'industrialisation" dans le [PRD](./prd.md) pour le pourquoi. Le
 mécanisme (repo `ci-templates`, descriptors
 `platform-gitops/argocd/apps/<app>.yaml`, manifests ArgoCD générés et
 Terraform `gitlab-projects-iac`) est détaillé dans la spec technique.

@@ -33,7 +33,7 @@ mécanisme (boucle CI sur `${SERVICES}`, plusieurs `kustomize edit set
 image`) : `ci-templates/docs/spec-technique.md` et
 `helloworld/docs/spec-technique.md`.
 
-## Scaling : implémentation
+## Industrialisation : implémentation
 
 - **Repo `ci-templates`** (GitLab) : héberge le pipeline générique décrit
   ci-dessus. Source locale : `ci-templates/`, projet créé par Terraform
@@ -162,7 +162,8 @@ plateforme est documenté dans `platform-cicd/docs/spec-technique.md`.
 
 - `argocd/managed/` (dans `platform-gitops`) déclare les add-ons plateforme
   applicative synchronisés par ArgoCD ; les add-ons cluster bas niveau
-  vivent dans `infrastructure/ansible`.
+  vivent dans `infrastructure/ansible`, le bootstrap ArgoCD/GitLab dans
+  `platform-cicd/ansible`.
 - Le pipeline générique (`ci-templates`) couvre le tag unique `vX.Y.Z`, le
   build once/promote everywhere, les gates manuels, le rollback prod et le
   self-heal ArgoCD.

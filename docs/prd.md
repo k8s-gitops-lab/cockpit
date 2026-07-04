@@ -38,10 +38,10 @@ les noms de dépôts ci-dessous omettent donc ce préfixe par souci de lisibilit
     Applications ArgoCD, une par branche d'environnement.
 
 Le pattern CI/CD est conçu pour être répliqué à l'identique sur des dizaines
-d'applications (cf. "Objectif du scaling" ci-dessous) — `helloworld` n'en est
+d'applications (cf. "Objectif de l'industrialisation" ci-dessous) — `helloworld` n'en est
 que la première implémentation.
 
-## Objectif du scaling
+## Objectif de l'industrialisation
 
 Ajouter une app au pattern doit se résumer à ajouter un fichier d'app dans un
 inventaire déclaratif, pas à dupliquer de la logique CI/GitOps. Le mécanisme
@@ -107,9 +107,9 @@ oublis, et pour identifier ce qui deviendrait nécessaire avec une vraie
   Maintainer) ; deviendrait nécessaire de revisiter avec une vraie équipe.
 - **`GITLAB_PUSH_TOKEN` est un token personnel `root` avec le scope `api`
   complet** (accès admin à toute l'instance GitLab), pas un token scopé par
-  projet. Le réutiliser pour toutes les apps lors du "Scaling" maximiserait
+  projet. Le réutiliser pour toutes les apps lors de l'"Industrialisation" maximiserait
   le rayon d'explosion en cas de fuite (logs CI mal masqués, runner
   compromis). Cible long terme : un **token de projet** (`project access
   token`) par couple `<app>`/`<app>-manifests`, scopé au strict nécessaire.
   Acceptable de garder le token root partagé pour ce POC mono-app ; à
-  traiter avant tout "Scaling" réel avec plusieurs apps/équipes.
+  traiter avant toute "Industrialisation" réelle avec plusieurs apps/équipes.
