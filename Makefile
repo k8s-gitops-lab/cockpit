@@ -126,7 +126,7 @@ gitlab-password: ## Affiche le mot de passe root initial de GitLab
 ghcr-pull-secret: ## Deploie secrets/ghcr-pull-secret.yaml (SOPS, via Ansible) comme secret source dans argocd ; chaque app le recopie dans ses namespaces via sa conf ArgoCD (Jobs generes par render-argocd-apps.py)
 	@$(ENV); \
 	echo "==> control-plane: ghcr-pull-secret -> ansible-playbook --tags ghcr-pull-secret"; \
-	cd "$$INFRASTRUCTURE_REPO/ansible" && ansible-playbook playbook-platform.yml --tags ghcr-pull-secret \
+	cd "$$PLATFORM_REPO_ROOT/ansible" && ansible-playbook playbook-platform.yml --tags ghcr-pull-secret \
 	  -e argocd_namespace="$$ARGOCD_NAMESPACE" \
 	  -e control_plane_root="$(CURDIR)"
 
