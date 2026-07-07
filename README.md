@@ -30,8 +30,9 @@ Deux profils utilisent ce workspace, à deux moments différents.
 
 ### Parcours 1 — Un·e opérateur DevOps met en place la plateforme
 
-Prérequis : le workspace cloné avec ses sous-modules (`git submodule update
---init --recursive`), et le secret GHCR paramétré une première fois :
+Prérequis : le workspace cloné (`bash scripts/clone-github-org.sh` clone les
+repos de l'organisation GitHub côte à côte), et le secret GHCR paramétré une
+première fois :
 
 ```sh
 make ghcr-token-init
@@ -150,7 +151,6 @@ rejouer tout le début :
 
 ```sh
 make platform-bootstrap START_AT=gitlab-tf-credentials
-make platform-bootstrap-from-gitlab-tf-credentials
 ```
 
 `platform.yml` est un profil operateur local, pas la source de verite des
@@ -166,14 +166,17 @@ Les compromis de securite propres au POC sont documentes dans
 Les scripts operateur du workspace sont versionnes dans `scripts/` :
 
 ```sh
+# Initialise/met a jour le workspace depuis l'org GitHub
 bash scripts/clone-github-org.sh
+
+# Repos du workspace : GitHub fait foi
 bash scripts/commit-push-subprojects.sh --message "..." --remote github
+
+# Repos committes cote GitLab runtime (ci-templates, helloworld*) :
+# GitLab fait foi, miroir GitHub en aval
 bash scripts/commit-gitlab-app-repos.sh --message "..."
 ```
 
-Les repos du POC sont maintenant references comme sous-modules Git. Apres un
-clone, initialiser le workspace avec :
-
-```sh
-git submodule update --init --recursive
-```
+Les repos du POC sont des depots GitHub independants, clones cote a cote dans
+le meme dossier parent (pas de sous-modules Git) ; `clone-github-org.sh`
+initialise ou met a jour le workspace complet.

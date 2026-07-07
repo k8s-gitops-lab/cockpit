@@ -143,8 +143,10 @@ Terraform crée/actualise les projets GitLab.
 
 `control-plane/scripts/` ne contient que les scripts propres à
 l'orchestration locale (`bootstrap.py`, `export-env.py`,
-`gitlab-git-creds.py`, scripts workspace `clone-github-org.sh` et
-`commit-*.sh`). Les scripts de bootstrap plateforme
+`gitlab-git-creds.py`, `ghcr-token-init.py`, scripts workspace
+`clone-github-org.sh` et `commit-*.sh` — les deux scripts `commit-*`
+encodent des directions de vérité opposées, voir
+[`source-control.md`](source-control.md)). Les scripts de bootstrap plateforme
 (`gitlab-tf-credentials.py`, `render-argocd-apps.py`, `gitlab-runner-token.py`,
 `gitlab-dex-oauth-app.py`) vivent dans `platform-cicd/scripts/` et sont
 appelés par `control-plane` via `make -C ../platform-cicd <cible>` (voir

@@ -6,6 +6,13 @@ usage() {
 Usage:
   scripts/commit-gitlab-app-repos.sh --message "message de commit"
 
+Role:
+  Synchronise les seuls repos committes cote GitLab runtime (templates CI et
+  projets helloworld) : la CI s'exerce dessus, GitLab fait foi. D'ou la
+  sequence pull --rebase depuis gitlab, push gitlab, puis miroir GitHub
+  (force-with-lease). Pour les autres repos du workspace (GitHub fait foi),
+  utiliser commit-push-subprojects.sh.
+
 Options:
   -m, --message MESSAGE   Message utilise pour git commit.
   -d, --dir DIR           Dossier parent contenant les repos.

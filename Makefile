@@ -8,14 +8,14 @@ ENV = CONFIG="$(CONFIG)" python3 scripts/export-env.py > "$(ENV_FILE)" && . "$(E
 START_AT ?=
 STOP_AFTER ?=
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-from-% platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy gitlab-tf-credentials argocd-repo-creds argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy gitlab-tf-credentials argocd-repo-creds argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
 
 
 validate: ## Verifie platform.yml et compile les scripts Python
-	@python3 -m py_compile scripts/export-env.py && echo "OK: export-env.py"
+	@python3 -m py_compile scripts/*.py && echo "OK: scripts Python"
 	@CONFIG="$(CONFIG)" python3 scripts/export-env.py > /dev/null && echo "OK: platform.yml valide"
 
 env: ## Affiche les variables exportees depuis platform.yml
@@ -37,18 +37,12 @@ vm-images: vm-images-build vm-images-add ## Construit et enregistre les images V
 cluster-up: ## Provisionne le socle cluster via ../infrastructure
 	@$(ENV); \
 	echo "==> control-plane: cluster-up -> make -C $$INFRASTRUCTURE_REPO up"; \
-	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" up \
-	  gateway_api_version="$$GATEWAY_API_VERSION" \
-	  metallb_chart_version="$$METALLB_CHART_VERSION" \
-	  traefik_chart_version="$$TRAEFIK_CHART_VERSION"
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" up
 
 cluster-from-images: vm-images-add ## Deploie le cluster depuis les boxes Packer k8s-master/k8s-worker
 	@$(ENV); \
 	echo "==> control-plane: cluster-from-images -> make -C $$INFRASTRUCTURE_REPO create-cluster"; \
-	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" create-cluster \
-	  gateway_api_version="$$GATEWAY_API_VERSION" \
-	  metallb_chart_version="$$METALLB_CHART_VERSION" \
-	  traefik_chart_version="$$TRAEFIK_CHART_VERSION"
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" create-cluster
 
 platform-up: ## Sequence complete (images, cluster, bootstrap, git-creds), reprise automatique en cas d'echec
 	python3 scripts/bootstrap.py --config "$(CONFIG)" --make "$(MAKE_BIN)"
@@ -72,9 +66,6 @@ platform-bootstrap: ## Bootstrap ArgoCD et la plateforme via ../platform-cicd, r
 	  ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE" \
 	  START_AT="$(START_AT)" \
 	  STOP_AFTER="$(STOP_AFTER)"
-
-platform-bootstrap-from-%: ## Reprend le bootstrap plateforme depuis une etape platform-cicd (reprise fine, cf. platform-up --platform-start-at)
-	$(MAKE) platform-bootstrap START_AT=$*
 
 gitlab-git-creds: ## Cree un PAT GitLab root et l'injecte dans git-credential pour l'URL interne cluster
 	@$(ENV); \

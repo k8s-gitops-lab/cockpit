@@ -1,9 +1,16 @@
+#!/usr/bin/env bash
 set -u
 
 usage() {
   cat <<'USAGE'
 Usage:
   scripts/commit-push-subprojects.sh --message "message de commit" --remote github|gitlab|both
+
+Role:
+  Commit/push des repos du workspace vers leur amont : GitHub fait foi.
+  Les repos committes cote GitLab runtime (helloworld, helloworld-iac,
+  ci-templates) ont leur propre script avec la semantique inverse
+  (GitLab fait foi) : commit-gitlab-app-repos.sh.
 
 Options:
   -m, --message MESSAGE   Message utilise pour git commit.

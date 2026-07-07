@@ -6,11 +6,15 @@
 unique pour provisionner l'environnement complet : cluster, plateforme et seed.
 Il ne contient pas de code exécuté en production.
 
-## Source de vérité
+## platform.yml : profil de surcharge, pas source de vérité
 
-**`platform.yml` est la seule source de vérité pour les versions et les chemins.**
-Toute modification de version (Kubernetes, ArgoCD, Helm charts, template CI...)
-doit passer par ce fichier. `scripts/export-env.py` le transforme en variables
+`platform.yml` est un profil opérateur local : chemins des repos voisins et
+valeurs effectivement passées aux Makefiles délégués (domaine, namespaces,
+version ArgoCD). Chaque repo reste autonome avec ses propres defaults ; en
+particulier, les versions du socle cluster (Kubernetes, Flannel, Helm,
+charts...) sont pinnées dans `infrastructure/ansible/group_vars/all.yml`, pas
+ici. Ne déclarer dans `platform.yml` que des valeurs réellement consommées
+par une cible du Makefile. `scripts/export-env.py` le transforme en variables
 shell exportées et mémorisées dans `.control-plane.env`.
 
 ## Commandes principales

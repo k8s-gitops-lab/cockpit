@@ -29,22 +29,11 @@ def main() -> None:
     repos = platform["repositories"]
 
     values = {
-        "PLATFORM_CONFIG": config_path,
         "GITLAB_DOMAIN": platform["domain"],
         "GITLAB_NAMESPACE": platform["gitlab"]["namespace"],
         "INTERNAL_GITLAB_HOST": platform["gitlab"]["internalHost"],
         "ARGOCD_NAMESPACE": platform["argocd"]["namespace"],
-        "REGISTRY_HOST": platform["registry"]["host"],
         "ARGOCD_VERSION": versions["argocd"],
-        "KUBERNETES_VERSION": versions["kubernetes"],
-        "KUBERNETES_MINOR_VERSION": versions["kubernetesMinor"],
-        "FLANNEL_VERSION": versions["flannel"],
-        "METRICS_SERVER_VERSION": versions["metricsServer"],
-        "HELM_VERSION": versions["helm"],
-        "LOCAL_PATH_PROVISIONER_VERSION": versions["localPathProvisioner"],
-        "TRAEFIK_CHART_VERSION": versions["traefikChart"],
-        "METALLB_CHART_VERSION": versions["metallbChart"],
-        "GATEWAY_API_VERSION": versions["gatewayApi"],
         "INFRASTRUCTURE_REPO": repos["infrastructure"],
         "PLATFORM_REPO_ROOT": repos["platform"],
         "GITOPS_REPO_ROOT": repos["gitops"],

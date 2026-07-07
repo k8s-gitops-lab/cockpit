@@ -25,6 +25,14 @@ Une fois la plateforme deployee, les projets sont importes ou seedes dans le
 GitLab interne. La CI, les depots applicatifs et les lectures ArgoCD en
 cluster utilisent ces depots GitLab.
 
+Seuls les templates CI et les projets applicatifs d'exemple (`ci-templates`,
+`helloworld`, `helloworld-iac`) se committent directement cote GitLab : la CI
+s'exerce dessus, GitLab fait foi pour eux, et GitHub n'en est qu'un miroir.
+Leur synchronisation (pull --rebase GitLab, push GitLab, miroir GitHub) passe
+par `scripts/commit-gitlab-app-repos.sh` — a l'inverse des autres repos du
+workspace, pousses via `scripts/commit-push-subprojects.sh` avec GitHub comme
+source de verite.
+
 ## PLATFORM_REPO_URL : depot source GitOps
 
 `PLATFORM_REPO_URL` des commandes toolbox pointe vers le depot source
