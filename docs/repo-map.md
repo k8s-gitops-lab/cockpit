@@ -10,7 +10,7 @@ repos dans cet ordre.
 | `infrastructure` | Socle Kubernetes local | Cree les VMs, initialise Kubernetes et installe les add-ons reseau bas niveau. |
 | `platform-cicd` | Bootstrap technique | Installe ArgoCD, configure le bootstrap initial et expose les commandes operateur. |
 | `platform-gitops` | Etat GitOps suivi par ArgoCD | Contient `argocd/managed/`, `argocd/platform/` et l'inventaire applicatif. |
-| `toolbox` | Outillage partage | Onboarding d'apps (PR sur l'inventaire), rendu des variables Terraform GitLab, credentials ArgoCD. |
+| `toolbox` | Outillage partage | Onboarding d'apps (PR sur l'inventaire), rendu des variables Terraform GitLab. |
 | `gitlab-projects-iac` | Provisioning GitLab | Terraform (applique automatiquement par Flux) : cree/met a jour les projets GitLab, la protection de branches et les miroirs GitHub. |
 | `ci-templates` | Pipeline applicatif generique | Template GitLab CI versionne, inclus par les apps. |
 | `helloworld` | App exemple | Monorepo applicatif multi-services. |
@@ -23,9 +23,10 @@ repos dans cet ordre.
 3. ArgoCD lit `platform-gitops` et synchronise GitLab, les routes plateforme
    et les ApplicationSets applicatifs (les images applicatives sont poussées
    sur GHCR, pas sur un registry interne au cluster).
-4. `toolbox` lit l'inventaire de `platform-gitops`, genere
-   `apps.auto.tfvars.json` pour `gitlab-projects-iac` et cree les credentials
-   ArgoCD.
+4. `toolbox` lit l'inventaire de `platform-gitops` et genere
+   `apps.auto.tfvars.json` pour `gitlab-projects-iac` (les credentials ArgoCD
+   des repos manifests sont fabriques en continu par External Secrets
+   Operator).
 5. Le Terraform de `gitlab-projects-iac` (applique automatiquement par Flux)
    cree ou met a jour les projets GitLab, la protection de branches et les
    miroirs GitHub.

@@ -40,9 +40,11 @@ make ghcr-token-init
 
 Cette commande crée la clé age locale si besoin, demande un compte GitHub et
 un PAT (scope `read:packages`, saisie masquée), puis chiffre
-`secrets/ghcr-pull-secret.yaml`. Voir `docs/security-poc.md` pour le détail.
-Committer/pousser les fichiers modifiés (`.sops.yaml`,
-`secrets/ghcr-pull-secret.yaml`) avant de lancer :
+`platform-gitops/flux-secrets/ghcr-pull-secret.yaml`. Voir
+`docs/security-poc.md` pour le détail. Committer/pousser les fichiers
+modifiés de `platform-gitops` (`.sops.yaml`,
+`flux-secrets/ghcr-pull-secret.yaml`) — Flux lit le repo GitHub — avant de
+lancer :
 
 ```sh
 make platform-up
@@ -132,9 +134,11 @@ platform-bootstrap-status` pour les consulter) :
 - `make platform-bootstrap` : installe ArgoCD puis bootstrappe GitLab, le
   runner et les apps plateforme (les images applicatives sont poussées sur
   GHCR, pas sur un registry interne).
-- `make ghcr-pull-secret` : depose le secret GHCR source dans le namespace
-  `argocd` ; chaque app le recopie ensuite dans ses namespaces via un Job
-  genere par `render-argocd-apps.py` a la creation de ses namespaces.
+- `make ghcr-pull-secret` : attend que Flux depose le secret GHCR source
+  (dechiffre depuis `platform-gitops/flux-secrets/`) dans le namespace
+  `argocd` ; External Secrets Operator le distribue ensuite en continu sous
+  le nom `ghcr-pull` dans chaque namespace applicatif labellise par
+  `render-argocd-apps.py`.
 - `make gitlab-git-creds` : verifie le PAT GitLab root stocke dans
   `git-credential` pour l'URL interne du cluster, et ne le (re)cree que s'il
   est absent, invalide ou a moins de 30 jours d'expiration
@@ -176,7 +180,7 @@ dans ce repo, puis peut etre surchargee ici pour orchestrer le POC complet.
 
 Les compromis de securite propres au POC sont documentes dans
 `docs/security-poc.md`, incluant la gestion des secrets chiffres SOPS
-(`secrets/ghcr-pull-secret.yaml`).
+(`platform-gitops/flux-secrets/ghcr-pull-secret.yaml`).
 
 ## Scripts workspace
 

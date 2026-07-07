@@ -8,7 +8,7 @@ ENV = CONFIG="$(CONFIG)" python3 scripts/export-env.py > "$(ENV_FILE)" && . "$(E
 START_AT ?=
 STOP_AFTER ?=
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-repo-creds argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -97,15 +97,6 @@ gitlab-tf-credentials: ## Cree/rotate le PAT GitLab consomme par Terraform
 	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE"
 
-argocd-repo-creds: ## Cree les credentials ArgoCD pour les repos manifests prives
-	@$(ENV); \
-	echo "==> control-plane: argocd-repo-creds -> make -C $$TOOLBOX_REPO argocd-repo-creds"; \
-	$(MAKE_BIN) -C "$$TOOLBOX_REPO" argocd-repo-creds \
-	  PLATFORM_REPO_ROOT="$$GITOPS_REPO_ROOT" \
-	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
-	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE" \
-	  ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"
-
 argocd-password: ## Affiche le mot de passe admin initial d'ArgoCD
 	@$(ENV); \
 	echo "==> control-plane: argocd-password -> make -C $$PLATFORM_REPO_ROOT argocd-password"; \
@@ -118,15 +109,12 @@ gitlab-password: ## Affiche le mot de passe root initial de GitLab
 	$(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" gitlab-password \
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE"
 
-ghcr-token-init: ## Genere/chiffre secrets/ghcr-pull-secret.yaml a partir d'un compte + PAT GitHub (cle age locale creee si absente) ; prealable a make ghcr-pull-secret
-	python3 scripts/ghcr-token-init.py
+ghcr-token-init: ## Genere/chiffre platform-gitops/flux-secrets/ghcr-pull-secret.yaml a partir d'un compte + PAT GitHub (cle age locale creee si absente) ; committer/pousser platform-gitops ensuite
+	CONFIG="$(CONFIG)" python3 scripts/ghcr-token-init.py
 
-ghcr-pull-secret: ## Deploie secrets/ghcr-pull-secret.yaml (SOPS, via Ansible) comme secret source dans argocd ; chaque app le recopie dans ses namespaces via sa conf ArgoCD (Jobs generes par render-argocd-apps.py)
-	@$(ENV); \
-	echo "==> control-plane: ghcr-pull-secret -> ansible-playbook --tags ghcr-pull-secret"; \
-	cd "$$PLATFORM_REPO_ROOT/ansible" && ansible-playbook playbook-platform.yml --tags ghcr-pull-secret \
-	  -e argocd_namespace="$$ARGOCD_NAMESPACE" \
-	  -e control_plane_root="$(CURDIR)"
+ghcr-pull-secret: ## Attend que Flux depose le secret source GHCR (flux-secrets/, SOPS) dans argocd ; External Secrets le distribue ensuite aux namespaces applicatifs
+	@echo "==> control-plane: ghcr-pull-secret -> scripts/ghcr-pull-secret-wait.py"; \
+	CONFIG="$(CONFIG)" python3 scripts/ghcr-pull-secret-wait.py
 
 status: ## Affiche l'etat ArgoCD depuis ../platform-cicd
 	@$(ENV); echo "==> control-plane: status -> make -C $$PLATFORM_REPO_ROOT status"; $(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" status ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"

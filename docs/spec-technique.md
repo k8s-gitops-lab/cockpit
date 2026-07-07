@@ -81,7 +81,9 @@ image`) : `ci-templates/docs/spec-technique.md` et
     gates, les variables et les protections GitLab.
 - **Add-ons plateforme sous ArgoCD** : le root Application synchronise aussi
   les `Application` déclarées dans `argocd/managed/` pour les composants de
-  plateforme applicative : GitLab et exposition HTTP d'ArgoCD. Les images
+  plateforme applicative : GitLab, exposition HTTP d'ArgoCD, Flux
+  (déchiffrement SOPS et Terraform) et External Secrets Operator
+  (distribution des secrets GHCR et repository ArgoCD). Les images
   applicatives sont poussées sur GHCR (`ghcr.io/k8s-gitops-lab`), pas
   sur un registry interne au cluster. Les add-ons cluster bas niveau
   (Gateway API, MetalLB, Traefik et Gateway partagée) sont provisionnés par
@@ -151,9 +153,8 @@ encodent des directions de vérité opposées, voir
 `gitlab-dex-oauth-app.py`) vivent dans `platform-cicd/scripts/` et sont
 appelés par `control-plane` via `make -C ../platform-cicd <cible>` (voir
 `Makefile`). Les utilitaires d'administration applicative
-(`render-gitlab-projects.py`, `argocd-repo-creds.py`) vivent dans
-`toolbox/scripts/` et s'appellent avec `PLATFORM_REPO_ROOT` pointant vers
-`platform-gitops`. L'ajout d'une app ne passe pas par un script : c'est une
+(`render-gitlab-projects.py`) vivent dans `toolbox/scripts/` et s'appellent
+avec `PLATFORM_REPO_ROOT` pointant vers `platform-gitops`. L'ajout d'une app ne passe pas par un script : c'est une
 pull/merge request directe sur `platform-gitops`.
 
 ## Dette IaC connue
