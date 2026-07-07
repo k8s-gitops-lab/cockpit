@@ -8,7 +8,7 @@ ENV = CONFIG="$(CONFIG)" python3 scripts/export-env.py > "$(ENV_FILE)" && . "$(E
 START_AT ?=
 STOP_AFTER ?=
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds gitlab-projects
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -78,6 +78,10 @@ gitlab-git-creds: ## Verifie le PAT GitLab root stocke dans git-credential, le (
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE" \
 	  INTERNAL_GITLAB_HOST="$$INTERNAL_GITLAB_HOST" \
 	  python3 scripts/gitlab-git-creds.py
+
+gitlab-projects: ## Attend que le Terraform gitlab-iac (tf-controller) ait cree les projets GitLab applicatifs
+	@echo "==> control-plane: gitlab-projects -> scripts/gitlab-iac-wait.py"; \
+	CONFIG="$(CONFIG)" python3 scripts/gitlab-iac-wait.py
 
 platform-down: ## Eteint les VMs de la plateforme sans les detruire
 	@$(ENV); \

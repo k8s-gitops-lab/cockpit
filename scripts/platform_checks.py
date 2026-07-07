@@ -213,6 +213,27 @@ def check_git_creds(values: dict[str, str]) -> tuple[bool, str]:
     return ok, detail
 
 
+def check_gitlab_iac(values: dict[str, str]) -> tuple[bool, str]:
+    """Vérifie que le CR Terraform Flux gitlab-iac a fini son apply.
+
+    Les projets GitLab applicatifs (groupes, <app>/<app>-iac, mirroring) sont
+    créés de façon asynchrone par ce CR après le sync ArgoCD. Tant qu'il n'est
+    pas Ready, l'API GitLab renvoie 404 sur ces projets.
+    """
+    out = kubectl_out([
+        "-n", "flux-system", "get", "terraforms.infra.contrib.fluxcd.io", "gitlab-iac",
+        "-o", 'jsonpath={.status.conditions[?(@.type=="Ready")].status}'
+               '|{.status.conditions[?(@.type=="Ready")].message}',
+    ])
+    if out is None:
+        return False, "CR Terraform gitlab-iac introuvable (namespace flux-system) — tf-controller pas encore convergé ?"
+    status, _, message = out.partition("|")
+    status, message = status.strip(), message.strip()
+    if status != "True":
+        return False, f"Terraform gitlab-iac non appliqué (Ready={status or '?'} : {message or 'apply en cours'})"
+    return True, f"Terraform gitlab-iac appliqué ({message})"
+
+
 # ---------------------------------------------------------------------------
 # Checks applicatifs (inventaire platform-gitops)
 # ---------------------------------------------------------------------------
