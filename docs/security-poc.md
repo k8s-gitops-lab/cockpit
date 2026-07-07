@@ -48,15 +48,37 @@ secrets/*.yaml           # fichiers chiffrés (commités)
 brew install age sops
 ```
 
-La cle privee est generee une seule fois et stockee localement :
+### Premier parametrage (nouvel operateur) : `make ghcr-token-init`
+
+Chaque operateur du POC travaille avec sa propre cle age locale : `.sops.yaml`
+ne declare qu'un seul recipient a la fois, celui de l'operateur courant. En
+clonant le workspace, remplacer ce recipient et regenerer le secret GHCR se
+fait en une commande :
 
 ```bash
-age-keygen -o ~/.config/sops/age/keys.txt
+make ghcr-token-init
 ```
 
-La cle publique correspondante est enregistree dans `.sops.yaml`.
+Cette commande (`scripts/ghcr-token-init.py`) :
 
-### Modifier un secret
+1. Genere `~/.config/sops/age/keys.txt` si absente (reutilisee sinon).
+2. Enregistre la cle publique correspondante comme recipient dans `.sops.yaml`.
+3. Demande un compte GitHub et un PAT (scope `read:packages`, saisie masquee) —
+   un lien de creation rapide du token est affiche.
+4. Construit et chiffre `secrets/ghcr-pull-secret.yaml` (memes conventions que
+   le fichier existant : seul `stringData` est chiffre, via
+   `--encrypted-regex '^(stringData|data)$'`).
+5. Verifie que le secret est bien dechiffrable avec la cle locale.
+
+A l'issue de la commande, committer/pousser `.sops.yaml` et
+`secrets/ghcr-pull-secret.yaml` avant `make platform-up` / `make
+ghcr-pull-secret`. Rejouer la commande plus tard permet de faire tourner
+(rotate) le token GitHub sans toucher a la cle age.
+
+### Modifier un secret manuellement
+
+Pour les autres secrets `secrets/*.yaml`, ou pour editer `ghcr-pull-secret.yaml`
+sans repasser par le script :
 
 ```bash
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops secrets/ghcr-pull-secret.yaml

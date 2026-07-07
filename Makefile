@@ -8,7 +8,7 @@ ENV = CONFIG="$(CONFIG)" python3 scripts/export-env.py > "$(ENV_FILE)" && . "$(E
 START_AT ?=
 STOP_AFTER ?=
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-from-% platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy gitlab-tf-credentials argocd-repo-creds argocd-password gitlab-password status ghcr-pull-secret gitlab-git-creds
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-from-% platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy gitlab-tf-credentials argocd-repo-creds argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -122,6 +122,9 @@ gitlab-password: ## Affiche le mot de passe root initial de GitLab
 	echo "==> control-plane: gitlab-password -> make -C $$PLATFORM_REPO_ROOT gitlab-password"; \
 	$(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" gitlab-password \
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE"
+
+ghcr-token-init: ## Genere/chiffre secrets/ghcr-pull-secret.yaml a partir d'un compte + PAT GitHub (cle age locale creee si absente) ; prealable a make ghcr-pull-secret
+	python3 scripts/ghcr-token-init.py
 
 ghcr-pull-secret: ## Deploie secrets/ghcr-pull-secret.yaml (SOPS, via Ansible) comme secret source dans argocd ; chaque app le recopie dans ses namespaces via sa conf ArgoCD (Jobs generes par render-argocd-apps.py)
 	@$(ENV); \

@@ -31,7 +31,17 @@ Deux profils utilisent ce workspace, à deux moments différents.
 ### Parcours 1 — Un·e opérateur DevOps met en place la plateforme
 
 Prérequis : le workspace cloné avec ses sous-modules (`git submodule update
---init --recursive`).
+--init --recursive`), et le secret GHCR paramétré une première fois :
+
+```sh
+make ghcr-token-init
+```
+
+Cette commande crée la clé age locale si besoin, demande un compte GitHub et
+un PAT (scope `read:packages`, saisie masquée), puis chiffre
+`secrets/ghcr-pull-secret.yaml`. Voir `docs/security-poc.md` pour le détail.
+Committer/pousser les fichiers modifiés (`.sops.yaml`,
+`secrets/ghcr-pull-secret.yaml`) avant de lancer :
 
 ```sh
 make platform-up
