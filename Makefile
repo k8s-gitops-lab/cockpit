@@ -7,8 +7,9 @@ MAKE_BIN ?= make
 ENV = CONFIG="$(CONFIG)" python3 scripts/export-env.py > "$(ENV_FILE)" && . "$(ENV_FILE)"
 START_AT ?=
 STOP_AFTER ?=
+SNAPSHOT_NAME ?= cluster-ready
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images platform-up platform-provision platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds gitlab-projects
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds gitlab-projects
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -45,11 +46,27 @@ cluster-from-images: vm-images-add ## Deploie le cluster depuis les boxes Packer
 	echo "==> control-plane: cluster-from-images -> make -C $$INFRASTRUCTURE_REPO create-cluster"; \
 	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" create-cluster
 
-platform-up: ## Sequence complete (images, cluster, bootstrap, git-creds, verify), reprise automatique et re-verification des etapes deja faites
+snapshot-cluster: ## Snapshot VirtualBox du cluster juste apres provisioning (avant platform-bootstrap)
+	@$(ENV); \
+	echo "==> control-plane: snapshot-cluster -> make -C $$INFRASTRUCTURE_REPO snapshot-cluster"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" snapshot-cluster SNAPSHOT_NAME="$(SNAPSHOT_NAME)"
+
+restore-cluster: ## Restaure le cluster depuis un snapshot VirtualBox (SNAPSHOT_NAME, defaut cluster-ready)
+	@$(ENV); \
+	echo "==> control-plane: restore-cluster -> make -C $$INFRASTRUCTURE_REPO restore-cluster"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" restore-cluster SNAPSHOT_NAME="$(SNAPSHOT_NAME)"
+
+platform-up: ## Sequence complete (images, cluster, snapshot, bootstrap, git-creds, verify), reprise automatique et re-verification des etapes deja faites
 	python3 scripts/bootstrap.py --config "$(CONFIG)" --make "$(MAKE_BIN)"
 
 platform-provision: ## Comme platform-up mais sans reconstruire les images VM
 	python3 scripts/bootstrap.py --config "$(CONFIG)" --make "$(MAKE_BIN)" --from cluster-from-images
+
+platform-from-snapshot: ## Restaure le snapshot VirtualBox (SNAPSHOT_NAME) puis rejoue platform-bootstrap -> verify
+	@$(ENV); \
+	echo "==> control-plane: platform-from-snapshot -> restore-cluster puis bootstrap --from platform-bootstrap"; \
+	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" restore-cluster SNAPSHOT_NAME="$(SNAPSHOT_NAME)" && \
+	python3 scripts/bootstrap.py --config "$(CONFIG)" --make "$(MAKE_BIN)" --from platform-bootstrap
 
 platform-bootstrap-status: ## Affiche l'etat de reprise de platform-up (etapes terminees / restantes)
 	python3 scripts/bootstrap.py --config "$(CONFIG)" --list

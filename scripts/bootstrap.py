@@ -45,6 +45,7 @@ def check_platform_verify(values: dict[str, str]) -> tuple[bool, str]:
 STEPS: list[tuple[str, str, object]] = [
     ("vm-images", "vm-images", pc.check_vm_images),
     ("cluster-from-images", "cluster-from-images", pc.check_cluster),
+    ("snapshot-cluster", "snapshot-cluster", pc.check_vm_snapshot),
     ("platform-bootstrap", "platform-bootstrap", pc.check_argocd_ready),
     ("ghcr-pull-secret", "ghcr-pull-secret", pc.check_ghcr_secret),
     ("gitlab-git-creds", "gitlab-git-creds", pc.check_git_creds),

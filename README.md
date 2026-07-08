@@ -131,6 +131,11 @@ platform-bootstrap-status` pour les consulter) :
   et `k8s-worker`.
 - `make cluster-from-images` : demarre les VMs et initialise le cluster depuis
   ces boxes.
+- `make snapshot-cluster` : prend un snapshot VirtualBox de `master-01`/
+  `worker-01` juste apres la fin du provisioning du cluster (nom
+  `SNAPSHOT_NAME`, defaut `cluster-ready`) — permet de rejouer uniquement le
+  bootstrap CI/CD ensuite sans repasser par Packer/Vagrant/kubeadm (voir
+  `make platform-from-snapshot` plus bas).
 - `make platform-bootstrap` : installe ArgoCD puis bootstrappe GitLab, le
   runner et les apps plateforme (les images applicatives sont poussées sur
   GHCR, pas sur un registry interne).
@@ -157,6 +162,7 @@ Les etapes restent executables separement :
 make env
 make vm-images
 make cluster-from-images
+make snapshot-cluster
 make platform-bootstrap
 make ghcr-pull-secret
 make gitlab-git-creds
@@ -166,6 +172,23 @@ make platform-verify
 Pour rejouer uniquement la séquence complète avec reprise automatique :
 `make platform-up` (depuis zéro) ou `make platform-provision` (sans
 reconstruire les images Packer existantes).
+
+### Rejouer uniquement le CI/CD depuis un snapshot
+
+Une fois `make snapshot-cluster` passé au moins une fois, `make
+platform-from-snapshot` restaure les VMs `master-01`/`worker-01` à cet état
+(cluster prêt, CI/CD pas encore déployé) puis reprend directement à
+`platform-bootstrap` — sans repasser par Packer/Vagrant/kubeadm :
+
+```sh
+make platform-from-snapshot
+# equivalent a :
+#   make restore-cluster
+#   python3 scripts/bootstrap.py --from platform-bootstrap
+```
+
+`SNAPSHOT_NAME` (defaut `cluster-ready`) est commun à `snapshot-cluster`,
+`restore-cluster` et `platform-from-snapshot`.
 
 En cas d'échec pendant le bootstrap plateforme, reprendre à l'étape utile sans
 rejouer tout le début :

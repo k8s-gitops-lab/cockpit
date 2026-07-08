@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = ROOT / "platform.yml"
 
 KUBECTL_TIMEOUT = 15  # secondes, par appel
+DEFAULT_SNAPSHOT_NAME = "cluster-ready"
 
 
 def config_path(config: str | os.PathLike | None = None) -> Path:
@@ -159,6 +160,19 @@ def check_cluster(values: dict[str, str]) -> tuple[bool, str]:
     if not_ready:
         return False, f"nodes non Ready : {', '.join(not_ready)}"
     return True, f"{len(nodes)} node(s) Ready"
+
+
+def check_vm_snapshot(values: dict[str, str]) -> tuple[bool, str]:
+    name = os.environ.get("SNAPSHOT_NAME", DEFAULT_SNAPSHOT_NAME)
+    vagrant_dir = repo_path(values, "INFRASTRUCTURE_REPO") / "vagrant"
+    missing = []
+    for vm in ("master-01", "worker-01"):
+        out = run_out(["vagrant", "snapshot", "list", vm], timeout=30, cwd=vagrant_dir)
+        if out is None or name not in out.splitlines():
+            missing.append(vm)
+    if missing:
+        return False, f"snapshot '{name}' absent sur : {', '.join(missing)}"
+    return True, f"snapshot '{name}' présent sur master-01 et worker-01"
 
 
 def check_argocd_ready(values: dict[str, str]) -> tuple[bool, str]:

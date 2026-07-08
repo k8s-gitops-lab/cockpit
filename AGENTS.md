@@ -25,6 +25,9 @@ make platform-up       # Tout provisionner depuis zéro (images Packer + cluster
 make platform-provision # Comme platform-up mais sans reconstruire les images Packer existantes
 make platform-verify   # Smoke test de bout en bout (rejouable à tout moment)
 make cluster-up        # Cluster seul (sans images Packer)
+make snapshot-cluster  # Snapshot VirtualBox du cluster (avant platform-bootstrap)
+make restore-cluster   # Restaure le cluster depuis un snapshot VirtualBox
+make platform-from-snapshot # Restaure le snapshot puis rejoue platform-bootstrap -> verify
 make platform-bootstrap # Bootstrap ArgoCD + plateforme seule
 make platform-bootstrap START_AT=gitlab-tf-credentials # Reprendre à une étape
 make gitlab-tf-credentials # Créer/rotater le PAT GitLab Terraform
