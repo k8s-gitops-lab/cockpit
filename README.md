@@ -64,7 +64,7 @@ Une fois la commande terminée :
 - `make platform-verify` : rejoue le smoke test à tout moment (cluster,
   GitLab, Applications ArgoCD Synced/Healthy, secret GHCR, PAT, projets et
   pipelines des apps de l'inventaire).
-- `make status` : état de synchronisation ArgoCD.
+- `make argocd-status` : état de synchronisation ArgoCD.
 - `make argocd-password` / `make gitlab-password` : récupérer les mots de
   passe admin initiaux.
 - La plateforme est prête à accueillir des projets applicatifs (Parcours 2).
@@ -78,7 +78,7 @@ Pour le détail de chaque étape :
 ### Parcours 2 — Une équipe applicative crée un projet
 
 Prérequis : la plateforme est déjà en place (Parcours 1 déjà réalisé par
-l'opérateur) et `make gitlab-git-creds` a été exécuté au moins une fois
+l'opérateur) et `make gitlab-git-credentials` a été exécuté au moins une fois
 (credentials git stockées pour l'hôte GitLab interne).
 
 1. Écrire le code de l'app (`<app>/`) et son dépôt de manifests
@@ -106,7 +106,7 @@ l'opérateur) et `make gitlab-git-creds` a été exécuté au moins une fois
    (`<group>` est celui déclaré à l'étape 2.)
 5. Vérifier le résultat : le projet apparaît dans GitLab
    (`https://gitlab.192.168.33.100.nip.io/<group>/`), les `Application`
-   ArgoCD correspondantes sont visibles et synchronisées (`make status` ou
+   ArgoCD correspondantes sont visibles et synchronisées (`make argocd-status` ou
    l'UI ArgoCD), et le premier merge sur `<app>` déclenche le pipeline
    `ci-templates` (build once, déploiement automatique vers `dev`).
 6. Les push suivants sur `<app>` suivent le pipeline `ci-templates` (build
@@ -139,12 +139,12 @@ platform-bootstrap-status` pour les consulter) :
 - `make platform-bootstrap` : installe ArgoCD puis bootstrappe GitLab, le
   runner et les apps plateforme (les images applicatives sont poussées sur
   GHCR, pas sur un registry interne).
-- `make ghcr-pull-secret` : attend que Flux depose le secret GHCR source
+- `make ghcr-pull-secret-wait` : attend que Flux depose le secret GHCR source
   (dechiffre depuis `platform-gitops/flux-secrets/`) dans le namespace
   `argocd` ; External Secrets Operator le distribue ensuite en continu sous
   le nom `ghcr-pull` dans chaque namespace applicatif labellise par
   `render-argocd-apps.py`.
-- `make gitlab-git-creds` : verifie le PAT GitLab root stocke dans
+- `make gitlab-git-credentials` : verifie le PAT GitLab root stocke dans
   `git-credential` pour l'URL interne du cluster, et ne le (re)cree que s'il
   est absent, invalide ou a moins de 30 jours d'expiration
   (`--rotate` pour forcer la rotation).
@@ -164,8 +164,8 @@ make vm-images
 make cluster-from-images
 make snapshot-cluster
 make platform-bootstrap
-make ghcr-pull-secret
-make gitlab-git-creds
+make ghcr-pull-secret-wait
+make gitlab-git-credentials
 make platform-verify
 ```
 

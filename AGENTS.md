@@ -30,8 +30,8 @@ make restore-cluster   # Restaure le cluster depuis un snapshot VirtualBox
 make platform-from-snapshot # Restaure le snapshot puis rejoue platform-bootstrap -> verify
 make platform-bootstrap # Bootstrap ArgoCD + plateforme seule
 make platform-bootstrap START_AT=gitlab-tf-credentials # Reprendre à une étape
-make gitlab-tf-credentials # Créer/rotater le PAT GitLab Terraform
-make status            # État ArgoCD
+make gitlab-terraform-credentials # Créer/rotater le PAT GitLab Terraform
+make argocd-status     # État ArgoCD
 ```
 
 ## Ordre de préférence pour le déploiement

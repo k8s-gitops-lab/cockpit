@@ -48,7 +48,7 @@ def main() -> None:
 
     token = pc.credential_fill(values["INTERNAL_GITLAB_HOST"])
     pat_ok, pat_detail, _ = pc.gitlab_pat_status(values["GITLAB_DOMAIN"], token) if token \
-        else (False, f"aucune credential git pour {values['INTERNAL_GITLAB_HOST']} (make gitlab-git-creds)", None)
+        else (False, f"aucune credential git pour {values['INTERNAL_GITLAB_HOST']} (make gitlab-git-credentials)", None)
     run("gitlab-pat", pat_ok, pat_detail)
 
     # Apps de l'inventaire (nécessite le PAT pour interroger l'API)

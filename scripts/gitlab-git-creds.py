@@ -7,7 +7,7 @@
 # Usage :
 #   python3 scripts/gitlab-git-creds.py [--rotate]
 #   # ou via make :
-#   make gitlab-git-creds
+#   make gitlab-git-credentials
 import argparse
 import base64
 import json

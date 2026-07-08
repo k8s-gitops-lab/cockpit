@@ -11,7 +11,7 @@ GitLab pour ces projets : sans cette attente, il s'exécute avant la fin du
 Usage :
   CONFIG=platform.yml python3 scripts/gitlab-iac-wait.py
   # ou via make :
-  make gitlab-projects
+  make gitlab-projects-wait
 
 Variables optionnelles :
   GITLAB_IAC_TIMEOUT  délai max en secondes (défaut 600)

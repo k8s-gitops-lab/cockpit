@@ -12,7 +12,7 @@ Ce script vérifie d'abord que le fichier chiffré existe dans le repo gitops
 Usage :
   CONFIG=platform.yml python3 scripts/ghcr-pull-secret-wait.py
   # ou via make :
-  make ghcr-pull-secret
+  make ghcr-pull-secret-wait
 
 Variables optionnelles :
   GHCR_SECRET_TIMEOUT  délai max en secondes (défaut 600)

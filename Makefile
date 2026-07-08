@@ -9,7 +9,7 @@ START_AT ?=
 STOP_AFTER ?=
 SNAPSHOT_NAME ?= cluster-ready
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-tf-credentials argocd-password gitlab-password status ghcr-token-init ghcr-pull-secret gitlab-git-creds gitlab-projects
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-terraform-credentials argocd-password gitlab-password argocd-status ghcr-token-init ghcr-pull-secret-wait gitlab-git-credentials gitlab-projects-wait
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -89,16 +89,16 @@ platform-verify: ## Smoke test de bout en bout : cluster, GitLab, ArgoCD Synced/
 	@echo "==> cockpit: platform-verify -> scripts/platform-verify.py"; \
 	CONFIG="$(CONFIG)" python3 scripts/platform-verify.py
 
-gitlab-git-creds: ## Verifie le PAT GitLab root stocke dans git-credential, le (re)cree si absent/invalide/proche expiration
+gitlab-git-credentials: ## Verifie le PAT GitLab root stocke dans git-credential, le (re)cree si absent/invalide/proche expiration
 	@$(ENV); \
-	echo "==> cockpit: gitlab-git-creds -> scripts/gitlab-git-creds.py"; \
+	echo "==> cockpit: gitlab-git-credentials -> scripts/gitlab-git-creds.py"; \
 	GITLAB_URL="https://gitlab.$$GITLAB_DOMAIN" \
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE" \
 	  INTERNAL_GITLAB_HOST="$$INTERNAL_GITLAB_HOST" \
 	  python3 scripts/gitlab-git-creds.py
 
-gitlab-projects: ## Attend que le Terraform gitlab-iac (tf-controller) ait cree les projets GitLab applicatifs
-	@echo "==> cockpit: gitlab-projects -> scripts/gitlab-iac-wait.py"; \
+gitlab-projects-wait: ## Attend que le Terraform gitlab-iac (tf-controller) ait cree les projets GitLab applicatifs
+	@echo "==> cockpit: gitlab-projects-wait -> scripts/gitlab-iac-wait.py"; \
 	CONFIG="$(CONFIG)" python3 scripts/gitlab-iac-wait.py
 
 platform-down: ## Eteint les VMs de la plateforme sans les detruire
@@ -112,9 +112,9 @@ platform-destroy: ## Detruit les VMs de la plateforme
 	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" destroy
 	@rm -f .bootstrap-state.json
 
-gitlab-tf-credentials: ## Cree/rotate le PAT GitLab consomme par Terraform
+gitlab-terraform-credentials: ## Cree/rotate le PAT GitLab consomme par Terraform
 	@$(ENV); \
-	echo "==> cockpit: gitlab-tf-credentials -> make -C $$PLATFORM_REPO_ROOT gitlab-tf-credentials"; \
+	echo "==> cockpit: gitlab-terraform-credentials -> make -C $$PLATFORM_REPO_ROOT gitlab-tf-credentials"; \
 	$(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" gitlab-tf-credentials \
 	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
 	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE"
@@ -134,9 +134,9 @@ gitlab-password: ## Affiche le mot de passe root initial de GitLab
 ghcr-token-init: ## Genere/chiffre platform-gitops/flux-secrets/ghcr-pull-secret.yaml a partir d'un compte + PAT GitHub (cle age locale creee si absente) ; committer/pousser platform-gitops ensuite
 	CONFIG="$(CONFIG)" python3 scripts/ghcr-token-init.py
 
-ghcr-pull-secret: ## Attend que Flux depose le secret source GHCR (flux-secrets/, SOPS) dans argocd ; External Secrets le distribue ensuite aux namespaces applicatifs
-	@echo "==> cockpit: ghcr-pull-secret -> scripts/ghcr-pull-secret-wait.py"; \
+ghcr-pull-secret-wait: ## Attend que Flux depose le secret source GHCR (flux-secrets/, SOPS) dans argocd ; External Secrets le distribue ensuite aux namespaces applicatifs
+	@echo "==> cockpit: ghcr-pull-secret-wait -> scripts/ghcr-pull-secret-wait.py"; \
 	CONFIG="$(CONFIG)" python3 scripts/ghcr-pull-secret-wait.py
 
-status: ## Affiche l'etat ArgoCD depuis ../platform-bootstrap
-	@$(ENV); echo "==> cockpit: status -> make -C $$PLATFORM_REPO_ROOT status"; $(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" status ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"
+argocd-status: ## Affiche l'etat ArgoCD depuis ../platform-bootstrap
+	@$(ENV); echo "==> cockpit: argocd-status -> make -C $$PLATFORM_REPO_ROOT status"; $(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" status ARGOCD_NAMESPACE="$$ARGOCD_NAMESPACE"

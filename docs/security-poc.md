@@ -42,7 +42,7 @@ service, secrets `dockerconfigjson`) sont stockes dans
 `age` — par exemple `flux-secrets/ghcr-pull-secret.yaml`, dechiffre dans le
 cluster par la Kustomization Flux `flux-secrets` (cle privee injectee dans le
 secret `sops-age` par le bootstrap). Aucun dechiffrement `kubectl` n'est
-execute depuis le poste ; `make ghcr-pull-secret` ne fait qu'attendre la
+execute depuis le poste ; `make ghcr-pull-secret-wait` ne fait qu'attendre la
 convergence.
 
 ### Structure (dans platform-gitops)
@@ -84,7 +84,7 @@ Cette commande (`scripts/ghcr-token-init.py`) :
 
 A l'issue de la commande, committer/pousser `.sops.yaml` et
 `flux-secrets/ghcr-pull-secret.yaml` dans `platform-gitops` (sur `origin` :
-Flux lit GitHub) avant `make platform-up` / `make ghcr-pull-secret`. Rejouer
+Flux lit GitHub) avant `make platform-up` / `make ghcr-pull-secret-wait`. Rejouer
 la commande plus tard permet de faire tourner (rotate) le token GitHub sans
 toucher a la cle age — External Secrets propage la rotation aux namespaces
 applicatifs sans autre action. Attention : changer de cle age rend les autres

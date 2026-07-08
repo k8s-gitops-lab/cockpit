@@ -147,7 +147,7 @@ def main() -> None:
     print("  - git status : verifier les changements (.sops.yaml, flux-secrets/ghcr-pull-secret.yaml)")
     print("  - committer puis pousser sur origin (Flux surveille GitHub) et gitlab :")
     print("      git push origin main && git push gitlab main")
-    print("  - Flux depose ensuite le secret dans argocd (make ghcr-pull-secret attend cette convergence)")
+    print("  - Flux depose ensuite le secret dans argocd (make ghcr-pull-secret-wait attend cette convergence)")
 
 
 if __name__ == "__main__":
