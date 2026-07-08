@@ -11,7 +11,7 @@
 
 | # | Axe | Statut | Repo(s) propriétaire(s) | Risque |
 |---|---|---|---|---|
-| 1 | Schéma d'inventaire versionné + validation CI | À faire | `platform-gitops` (+ `platform-cicd`) | Faible |
+| 1 | Schéma d'inventaire versionné + validation CI | ✅ Fait | `platform-gitops` (+ `platform-cicd`) | Faible |
 | 2 | Contrat de variables plateforme (dé-duplication domaine/registre) | Partiel | `platform-gitops`, `gitlab-projects-iac`, `ci-templates`, `infrastructure` | Faible |
 | 3 | Générateur natif ArgoCD (réduire `render-argocd-apps.py`) | Partiel | `platform-cicd`, `platform-gitops` | Élevé (spike) |
 | 4 | `ci-templates` → composants CI versionnés (`spec:inputs`) | À faire | `ci-templates` | Moyen |
@@ -41,10 +41,13 @@ requis : `name`, `group`. Tout le reste est dérivé par convention :
 `environments`, `manifests`, `code`, `showcaseService`, `argocd`,
 `importFromGithub`.
 
-**Reste à faire** : JSON Schema versionné (`apiVersion: platform/v1`) +
-job de validation dans la CI de `platform-gitops` déclenché sur la MR
-d'inventaire (feedback avant merge, pas après échec de rendu). Le schéma
-documente aussi le contrat, aujourd'hui éparpillé entre spec et code Python.
+**Reste à faire** : ~~JSON Schema versionné + job de validation CI~~ — **fait**
+(2026-07-08, `platform-gitops`) : `argocd/apps.schema.json` (draft 2020-12,
+`apiVersion: platform/v1`, requis `name`+`group`, `additionalProperties:false`),
+`scripts/validate-inventory.py`, job CI `validate-inventory` sur MR + main.
+`helloworld.yaml` estampillé `apiVersion` (zéro impact rendu, vérifié via
+`render --check`). Suite possible : faire dériver `_normalize_app` du schéma
+pour garantir la non-dérive, et étendre le schéma quand l'axe 5 arrive.
 
 ## Axe 2 — Contrat de variables plateforme
 
