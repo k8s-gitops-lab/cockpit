@@ -7,8 +7,8 @@
 
 ## CI/CD : chaîne d'environnements (résumé)
 
-La chaîne "build once, promote everywhere" (tag `vX.Y.Z`, build kaniko au
-merge sur `main` puis retag `crane` à la release, promotion dev → rec →
+La chaîne "build once, promote everywhere" (tag `vX.Y.Z`, build Buildah au
+merge sur `main` puis retag Skopeo à la release sans rebuild, promotion dev → rec →
 preprod → prod par mise à jour du `kustomization.yaml` du dépôt manifests,
 gates manuels + protected environment sur `deploy-prod`, self-heal ArgoCD,
 rollback par `git revert` sur le dépôt manifests) est implémentée et
@@ -63,7 +63,8 @@ image`) : `ci-templates/docs/spec-technique.md` et
   dans l'inventaire, sans avoir à connaître le renderer. Consommé par deux
   mécanismes :
   - le **rendu ArgoCD** : `platform-bootstrap/scripts/render-argocd-apps.py`
-    (cible `make argocd-apps-render`), déclenché automatiquement par un job
+    (cible `argocd-apps-render` du Makefile de `platform-bootstrap`),
+    déclenché automatiquement par un job
     CI au merge d'une PR sur `platform-gitops`, génère par app un dossier
     `argocd/generated/apps/<app>/` (un `AppProject` dédié, un
     `ApplicationSet` qui produit les `Application` par environnement, les
@@ -123,8 +124,9 @@ dans Ansible, pas dans ArgoCD :
   être remplacés par des `HTTPRoute` qui pointent vers les `Service`
   Kubernetes de l'app.
 - **UI ArgoCD** : `argocd/managed/argocd-ui.yaml` déploie l'exposition HTTP
-  ArgoCD depuis `argocd/platform/argocd-ui/`. La cible `make argocd-ingress`
-  ne fait plus qu'activer le mode HTTP côté serveur ArgoCD.
+  ArgoCD depuis `argocd/platform/argocd-ui/`. La cible `argocd-ingress` du
+  Makefile de `platform-bootstrap` ne fait plus qu'activer le mode HTTP côté
+  serveur ArgoCD.
 
 Les applications doivent converger vers des `HTTPRoute` au lieu d'`Ingress`.
 Une phase transitoire est acceptable, mais une app ne doit pas rester durablement

@@ -1,4 +1,4 @@
-# POC DevOps — Control Plane
+# POC DevOps — Cockpit
 
 Vocabulaire du POC de chaîne CI/CD GitOps auto-hébergée (voir `docs/prd.md` pour la vision produit et `docs/repo-map.md` pour la répartition entre dépôts).
 

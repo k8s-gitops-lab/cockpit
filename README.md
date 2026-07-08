@@ -23,6 +23,8 @@ La vue globale du projet vit ici :
 - `docs/spec-fonctionnelle.md` : flow Git, CI/CD et parcours applicatif.
 - `docs/spec-technique.md` : détails d'implémentation et contraintes infra.
 - `docs/prod-constraints.md` : contraintes à prévoir pour une cible prod.
+- `docs/security-poc.md` : posture sécurité du POC (clé age, SOPS, secret GHCR).
+- `docs/backlog.md` : suivi de l'initiative extensibilité/généricité.
 
 ## Parcours utilisateurs
 

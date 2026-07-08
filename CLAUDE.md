@@ -2,27 +2,35 @@
 
 ## Workflow Git
 
-Ne jamais modifier les fichiers directement dans l'interface GitLab (éditeur web, merge request, etc.).
+Ne jamais modifier les fichiers directement dans l'interface GitLab (éditeur
+web, merge request, etc.). Toujours : modifier en local, committer, pousser.
 
-Toujours :
-1. Faire les modifications en local.
-2. Committer localement.
-3. Pousser vers les deux remotes :
-   ```bash
-   git push origin main   # GitHub
-   git push gitlab main   # GitLab local
-   ```
-   Pour les tags :
-   ```bash
-   git push origin --tags
-   git push gitlab --tags
-   ```
+Tous les repos ont `origin` → `https://github.com/k8s-gitops-lab/<repo>`.
+Seuls 4 repos ont aussi un remote `gitlab` (GitLab local de la plateforme,
+chacun sous son groupe — aucun sous `root/`) :
 
-Les remotes disponibles dans tous les repos du POC :
-- `origin` → `https://github.com/k8s-gitops-lab/<repo>`
-- `gitlab` → `http(s)://gitlab.192.168.33.100.nip.io/root/<repo>`
+- `ci-templates` → `.../shared-ci/ci-templates`
+- `helloworld` → `.../hello-groupe/helloworld`
+- `helloworld-iac` → `.../hello-groupe/helloworld-iac`
+- `platform-gitops` → `.../infra/platform-gitops`
 
-## Règle : GitHub fait foi
+Où pousser (détail et rôles : `docs/source-control.md`) :
+
+- Repos GitHub-first (défaut, y compris `platform-gitops`) :
+  ```bash
+  git push origin main
+  ```
+- Repos GitLab-first (`ci-templates`, `helloworld`, `helloworld-iac` — la CI
+  s'exerce sur GitLab, qui fait foi pour eux) : committer côté GitLab puis
+  répercuter sur GitHub (`scripts/commit-gitlab-app-repos.sh` enchaîne
+  pull --rebase, push GitLab et miroir GitHub) :
+  ```bash
+  git push gitlab main
+  git push origin main
+  ```
+  Pour les tags : `git push gitlab --tags && git push origin --tags`.
+
+## Règle : tout commit finit sur GitHub
 
 Tout commit doit être poussé sur `origin` (GitHub) — c'est non négociable, y
 compris quand `gitlab` est injoignable depuis l'environnement courant (dans
