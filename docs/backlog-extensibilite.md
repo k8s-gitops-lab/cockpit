@@ -14,7 +14,7 @@
 | 1 | Schéma d'inventaire versionné + validation CI | ✅ Fait | `platform-gitops` (+ `platform-cicd`) | Faible |
 | 2 | Contrat de variables plateforme (dé-duplication domaine/registre) | Partiel | `platform-gitops`, `gitlab-projects-iac`, `ci-templates`, `infrastructure` | Faible |
 | 3 | Générateur natif ArgoCD (réduire `render-argocd-apps.py`) | Partiel | `platform-cicd`, `platform-gitops` | Élevé (spike) |
-| 4 | `ci-templates` → composants CI versionnés (`spec:inputs`) | À faire | `ci-templates` | Moyen |
+| 4 | `ci-templates` → composants CI versionnés (`spec:inputs`) | ✅ Fait | `ci-templates` | Moyen |
 | 5 | Séquence d'environnements déclarée par app | Partiel | `platform-gitops` + `ci-templates` | Moyen-élevé |
 | 7 | Multi-tenancy GitLab (token de projet par app) | Partiel | `gitlab-projects-iac`, `platform-cicd` | Élevé (sécurité) |
 | 6 | Scaffolding d'app (`app-template` + `toolbox`) | **Différé** | `toolbox` (+ nouveau repo) | — |
@@ -24,8 +24,10 @@
 1. **Phase 1 — fondations (faible risque)** : axe 1 puis axe 2. Contrat
    d'entrée (schéma) + contrat de sortie (variables) ; ils dé-risquent tout
    le reste.
-2. **Phase 2 — refactor CI (couplé)** : axe 4 (composants) puis axe 5
-   (séquence déclarative consommée par les composants). À faire ensemble.
+2. **Phase 2 — refactor CI** : axe 4 est déjà fait (composants versionnés en
+   place). Reste seulement axe 5 (séquence déclarative) à faire, sur les
+   composants existants — notamment généraliser `deploy-gitops` pour
+   générer un job par environnement déclaré au lieu de 4 jobs figés.
 3. **Phase 3 — spikes** : axe 3 (générateur natif) et axe 7 (tokens de
    projet), chacun précédé d'une spike de validation.
 4. **Différé** : axe 6.
@@ -51,20 +53,33 @@ pour garantir la non-dérive, et étendre le schéma quand l'axe 5 arrive.
 
 ## Axe 2 — Contrat de variables plateforme
 
-**État actuel (partiel)** : `platform-gitops/argocd/apps.yaml` porte déjà un
-bloc `platform:` (`domain`, `repoURL`, `targetRevision`, `registry.host`) +
-`gitlab.internalHost`. MAIS ces valeurs sont dupliquées ailleurs :
-`_PLATFORM_DEFAULTS` en Python, `gitlab_url` en dur dans
-`gitlab-projects-iac/terraform/variables.tf`, `REGISTRY_HOST` /
-`INTERNAL_GITLAB_HOST` en dur dans `ci-templates/gitlab-ci.yml`, et le
-domaine `192.168.33.100.nip.io` en dur dans ~20 fichiers de 9 repos.
+**État actuel (partiel, affiné le 2026-07-08)** : `platform-gitops/argocd/
+apps.yaml` porte déjà un bloc `platform:` (`domain`, `repoURL`,
+`targetRevision`, `registry.host`) + `gitlab.internalHost`, et
+`platform_constants()` (Python) fusionne déjà ce bloc par-dessus
+`_PLATFORM_DEFAULTS` — `apps.yaml` gagne quand présent, ce n'est pas une
+duplication aveugle. `ci-templates` a migré vers des composants CI/CD
+versionnés (voir axe 4, fait) : `registry_host` y est déjà un `spec:inputs`
+typé, `INTERNAL_GITLAB_HOST` reste délibérément une `variables:` (décision
+documentée). Le vrai trou confirmé : **`DOMAIN`** est consommé par
+`ci-templates/templates/deploy-gitops/template.yml` (`environment.url`)
+mais **aucune `gitlab_group_variable DOMAIN`** n'existe dans
+`gitlab-projects-iac` pour l'alimenter en pipeline réel. `gitlab_url` (TF)
+est bien utilisé par `providers.tf`, mais sa valeur effective vient du CR
+Flux `terraform-gitlab.yaml` qui la hardcode (4ᵉ emplacement du domaine).
+Le domaine `192.168.33.100.nip.io` reste en dur dans une vingtaine de
+fichiers de 9 repos au total.
 
-**Reste à faire** : un contrat de noms bien connus (`PLATFORM_DOMAIN`,
-`PLATFORM_REGISTRY`, `INTERNAL_GITLAB_HOST`…) injectés par le canal natif de
-chaque couche (variable TF, variable CI de groupe GitLab, values Helm, patch
-Kustomize). Chaque repo garde son default local (cf. `AGENTS.md`) ; le
-contrat ne fixe que les noms. Objectif : instancier le produit ailleurs sans
-grep multi-repo.
+**Reste à faire** : (2a, prioritaire) créer `gitlab_group_variable DOMAIN`
+par groupe d'app dans `gitlab-projects-iac/terraform/main.tf`, en suivant le
+pattern `for_each = local.app_groups` déjà en place — c'est le canal natif
+manquant, aucun changement requis côté `ci-templates` (qui lit déjà
+`${DOMAIN}`). Dédupliquer `_PLATFORM_DEFAULTS`/`platform_constants()` entre
+`platform-cicd` et `toolbox`. (2b, plus lourd) câbler le CR Flux
+`terraform-gitlab.yaml` sur `apps.yaml.platform.domain`, et paramétrer les
+hostnames d'ingress des manifests plateforme statiques. Chaque repo garde
+son default local (cf. `AGENTS.md`) ; le contrat ne fixe que les noms.
+Objectif : instancier le produit ailleurs sans grep multi-repo.
 
 ## Axe 3 — Générateur natif ArgoCD
 
@@ -78,26 +93,31 @@ directement `argocd/apps/*.yaml` + `goTemplate`, pour supprimer/réduire le
 rendu. Point dur : ExternalSecrets, namespaces et projets sont aussi générés
 — la spike doit trancher ce qui devient natif vs ce qui reste scripté.
 
-## Axe 4 — Composants CI versionnés
+## Axe 4 — Composants CI versionnés [FAIT]
 
-**État actuel** : `ci-templates/gitlab-ci.yml` est un template monolithique
-étendu par variables libres (`SERVICES`, `REGISTRY_HOST`, `HAS_PREPROD`…).
+**État actuel (vérifié le 2026-07-08)** : déjà implémenté, non documenté
+jusqu'ici. `ci-templates/gitlab-ci.yml` n'existe plus — le repo expose 3
+composants versionnés (`templates/{build-kaniko,deploy-gitops,promote}/
+template.yml`), chacun avec `spec:inputs` typés (defaults, regex).
+`helloworld/.gitlab-ci.yml` consomme déjà `include:component@v2.0.0` avec
+un bloc `inputs:` par composant, sans aucune logique inline.
 
-**Reste à faire** : convertir en **CI/CD components** GitLab
-(`include:component` + `spec:inputs` typés, defaults, validation). Découper
-en composants réutilisables (`build-kaniko`, `deploy-gitops`, `promote`).
-Une nouvelle capacité devient un composant versionné partagé, jamais du
-YAML local dans l'app (préserve le périmètre « app standard », cf.
-`CONTEXT.md`).
+**Reste à faire (optionnel)** : rien de bloquant. `deploy-gitops` génère
+encore 4 jobs figés (`deploy-{dev,rec,preprod,prod}`) — la rendre
+générique par environnement déclaré est le travail de l'axe 5, pas de
+celui-ci. Vérifier si un catalogue CI/CD formel apporterait un bénéfice
+réel vs le mécanisme `include:component` par chemin de projet, qui
+fonctionne déjà sans lui.
 
 ## Axe 5 — Séquence d'environnements déclarée par app
 
 **État actuel (partiel)** : `_normalize_app` accepte déjà un champ
 `environments:` qui surcharge intégralement la séquence dérivée
-(`dev/rec/preprod?/prod`), et `hasPreprod` bascule preprod. MAIS le template
-CI `ci-templates/gitlab-ci.yml` câble en dur les jobs `deploy-dev/rec/
-preprod/prod` avec une gate `HAS_PREPROD` — la séquence n'est donc PAS
-réellement déclarative côté CI.
+(`dev/rec/preprod?/prod`), et `hasPreprod` bascule preprod. MAIS le
+composant `ci-templates/templates/deploy-gitops/template.yml` (chemin mis à
+jour — repo réorganisé en composants versionnés, cf. axe 4, fait) câble en
+dur les jobs `deploy-dev/rec/preprod/prod` avec une gate `HAS_PREPROD` — la
+séquence n'est donc PAS réellement déclarative côté CI.
 
 **Reste à faire** : permettre de déclarer la séquence par app (ex.
 `environments: [dev, staging, prod]` en noms, le reste dérivé) et la

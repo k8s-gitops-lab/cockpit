@@ -10,20 +10,25 @@ commit + push sur les deux remotes (origin puis gitlab).
 Phase 1 — fondations
 [ ] Axe 2 — Contrat de variables plateforme (dé-hardcoder domaine/registre)
             Repos : platform-gitops, gitlab-projects-iac, ci-templates, infrastructure
-            - Noms bien connus : PLATFORM_DOMAIN, PLATFORM_REGISTRY, INTERNAL_GITLAB_HOST
-            - Injecter par canal natif (var TF, var CI de groupe, values Helm, patch Kustomize)
-            - Supprimer duplications : _PLATFORM_DEFAULTS, variables.tf gitlab_url,
-              REGISTRY_HOST/INTERNAL_GITLAB_HOST, domaine en dur (~20 fichiers/9 repos)
+            - Trou confirmé (2026-07-08) : gitlab_group_variable DOMAIN absente
+              dans gitlab-projects-iac — deploy-gitops (ci-templates) lit déjà
+              ${DOMAIN} mais rien ne la fournit en pipeline réel. Suivre le
+              pattern for_each=local.app_groups déjà en place (app_ghcr_token).
+            - Dédupliquer _PLATFORM_DEFAULTS/platform_constants() entre
+              platform-cicd et toolbox (seule cette partie est identique)
+            - 2b (plus lourd) : câbler le CR Flux terraform-gitlab.yaml
+              (spec.vars.gitlab_url, en dur) sur apps.yaml.platform.domain,
+              paramétrer les hostnames d'ingress des manifests plateforme
 
-Phase 2 — refactor CI (couplé, à faire ensemble)
-[ ] Axe 4 — ci-templates → composants CI versionnés (spec:inputs)
-            Repo : ci-templates
-            - include:component + inputs typés (defaults, validation)
-            - découper : build-kaniko, deploy-gitops, promote
+Phase 2 — refactor CI
+[x] Axe 4 — ci-templates → composants CI versionnés (spec:inputs)   FAIT (détecté 2026-07-08 — implémenté précédemment, non documenté)
+            Repo : ci-templates — templates/{build-kaniko,deploy-gitops,promote}/template.yml,
+            consommés par helloworld/.gitlab-ci.yml via include:component@v2.0.0
 [ ] Axe 5 — Séquence d'environnements déclarée par app
             Repos : platform-gitops + ci-templates
             - déclarer la séquence par noms (ex. environments: [dev, staging, prod])
             - consommer des deux côtés : rendu ArgoCD ET génération des jobs de deploy
+              (ci-templates/templates/deploy-gitops/template.yml — chemin mis à jour)
             - preprod cesse d'être un cas spécial (juste un env de la liste)
 
 Phase 3 — spikes (précédés d'une validation)
@@ -42,3 +47,6 @@ Différé
 Divers / dette relevée en passant
 [ ] Repousser tous les commits en attente vers le remote gitlab (injoignable ce jour)
 [ ] Faire dériver platform_inventory._normalize_app du JSON Schema (anti-dérive)
+[ ] Provisionner gitlab_group_variable DOMAIN par groupe d'app (gitlab-projects-iac)
+    — gap fonctionnel confirmé, deploy-gitops la consomme déjà mais rien ne la
+    fournit en pipeline GitLab CI réelle
