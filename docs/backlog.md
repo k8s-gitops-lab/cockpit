@@ -72,8 +72,8 @@ mais **aucune `gitlab_group_variable DOMAIN`** n'existe dans
 `gitlab-projects-iac` pour l'alimenter en pipeline réel. `gitlab_url` (TF)
 est bien utilisé par `providers.tf`, mais sa valeur effective vient du CR
 Flux `terraform-gitlab.yaml` qui la hardcode (4ᵉ emplacement du domaine).
-Le domaine `192.168.33.100.nip.io` reste en dur dans une vingtaine de
-fichiers de 9 repos au total.
+Le domaine `192.168.33.100.nip.io` reste en dur dans 38 fichiers de 8 repos
+au total (revérifié le 2026-07-08 ; `infra-iac` n'en a aucun).
 
 **Reste à faire** : (2a, prioritaire) créer `gitlab_group_variable DOMAIN`
 par groupe d'app dans `gitlab-projects-iac/terraform/main.tf`, en suivant le
@@ -95,10 +95,12 @@ déploiement — tester sur un env jetable. Vérification : `grep -rln
 
 ## Axe 3 — Générateur natif ArgoCD
 
-**État actuel (partiel)** : il existe déjà un `ApplicationSet` avec un git
-*directory* generator sur `argocd/generated/apps/*`, mais ces répertoires
-sont produits par une étape de rendu (`render-argocd-apps.py`, 280 lignes,
-génère aussi namespaces, ExternalSecrets, AppProjects).
+**État actuel (partiel, revérifié le 2026-07-08)** : il existe déjà un
+`ApplicationSet` avec un git *directory* generator sur
+`argocd/generated/apps/*`, mais ces répertoires sont produits par une étape
+de rendu (`render-argocd-apps.py`, 310 lignes — a grossi depuis la rédaction
+initiale, probablement lié à la validation d'inventaire de l'axe 1, génère
+aussi namespaces, ExternalSecrets, AppProjects).
 
 **Reste à faire (spike)** : évaluer un git *files* generator consommant
 directement `argocd/apps/*.yaml` + `goTemplate`, pour supprimer/réduire le
@@ -113,12 +115,14 @@ la complexité se déplace au lieu de se réduire. Documenter le verdict
 
 ## Axe 4 — Composants CI versionnés [FAIT]
 
-**État actuel (vérifié le 2026-07-08)** : déjà implémenté, non documenté
-jusqu'ici. `ci-templates/gitlab-ci.yml` n'existe plus — le repo expose 3
-composants versionnés (`templates/{build-kaniko,deploy-gitops,promote}/
-template.yml`), chacun avec `spec:inputs` typés (defaults, regex).
-`helloworld/.gitlab-ci.yml` consomme déjà `include:component@v2.0.0` avec
-un bloc `inputs:` par composant, sans aucune logique inline.
+**État actuel (revérifié le 2026-07-08)** : déjà implémenté. `ci-templates/
+gitlab-ci.yml` n'existe plus — le repo expose 3 composants versionnés
+(`templates/{build-docker,deploy-gitops,promote}/template.yml`), chacun avec
+`spec:inputs` typés (defaults, regex). `build-docker` construit via Buildah
+(ni Docker ni Kaniko malgré son nom — cf. commentaire `stages:` de
+`helloworld/.gitlab-ci.yml`). `helloworld/.gitlab-ci.yml` consomme déjà
+`include:component@v3.0.0` avec un bloc `inputs:` par composant, sans
+aucune logique inline.
 
 **Reste à faire (optionnel)** : rien de bloquant. `deploy-gitops` génère
 encore 4 jobs figés (`deploy-{dev,rec,preprod,prod}`) — la rendre
@@ -184,8 +188,10 @@ naissent conformes au pattern. **À traiter un autre jour** (décision
 ## Dette transverse
 
 - [ ] Repousser tous les commits en attente vers le remote `gitlab`
-  (injoignable depuis l'environnement le 2026-07-08 ; commits déjà poussés
-  sur `origin`, cf. règle GitHub-fait-foi du `CLAUDE.md`).
+  (toujours injoignable au 2026-07-08 ; commits déjà poussés sur `origin`,
+  cf. règle GitHub-fait-foi du `CLAUDE.md`). Pile en attente à cette date :
+  `ci-templates` +4, `helloworld` +5, `helloworld-iac` +1,
+  `platform-gitops` +4 commits.
 
 (Les autres points de dette relevés — dérivation de `_normalize_app` depuis
 le JSON Schema, `gitlab_group_variable DOMAIN` manquante — sont déjà suivis
