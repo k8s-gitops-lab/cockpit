@@ -5,7 +5,11 @@
 > plusieurs équipes). Ce fichier suit l'avancement ; chaque axe est
 > implémenté **dans son repo propriétaire**, jamais depuis `cockpit`
 > (cf. `AGENTS.md`). L'état actuel ci-dessous a été vérifié sur le code —
-> plusieurs axes sont déjà partiellement en place.
+> plusieurs axes sont déjà partiellement en place. Les fiches de tâches
+> détaillées (`docs/tasks-extensibilite.md`) ont été supprimées le
+> 2026-07-08 car redondantes avec ce fichier ; les points clés (pièges,
+> critères de vérification) ont été repliés dans les sections par axe
+> ci-dessous.
 
 ## Tableau de suivi
 
@@ -81,6 +85,13 @@ hostnames d'ingress des manifests plateforme statiques. Chaque repo garde
 son default local (cf. `AGENTS.md`) ; le contrat ne fixe que les noms.
 Objectif : instancier le produit ailleurs sans grep multi-repo.
 
+**Pièges** : les `_PLATFORM_DEFAULTS` sont un filet de sécurité, pas un
+doublon à supprimer aveuglément. Les manifests plateforme (2b) sont
+consommés tels quels par ArgoCD : une substitution non résolue casse le
+déploiement — tester sur un env jetable. Vérification : `grep -rln
+'192.168.33.100'` avant/après (le compte de consommateurs baisse),
+`render-argocd-apps.py --check` inchangé, `terraform validate`.
+
 ## Axe 3 — Générateur natif ArgoCD
 
 **État actuel (partiel)** : il existe déjà un `ApplicationSet` avec un git
@@ -92,6 +103,12 @@ génère aussi namespaces, ExternalSecrets, AppProjects).
 directement `argocd/apps/*.yaml` + `goTemplate`, pour supprimer/réduire le
 rendu. Point dur : ExternalSecrets, namespaces et projets sont aussi générés
 — la spike doit trancher ce qui devient natif vs ce qui reste scripté.
+
+**Pièges** : la dérivation par convention (`_normalize_app`) est riche
+(services→images, hosts, `argocdRepoURL` in-cluster) — `goTemplate` doit
+reproduire cette logique ou l'inventaire doit porter plus de champs, sinon
+la complexité se déplace au lieu de se réduire. Documenter le verdict
+(natif vs scripté) avant d'implémenter.
 
 ## Axe 4 — Composants CI versionnés [FAIT]
 
@@ -125,6 +142,11 @@ consommer **des deux côtés** : rendu ArgoCD ET génération des jobs de
 déploiement (couplé à l'axe 4, via un composant qui génère un job par env
 déclaré). `preprod` cesse d'être un cas spécial → juste un env de la liste.
 
+**Pièges** : garder `helloworld.yaml` (`hasPreprod: true`) rétro-compatible,
+ou migrer explicitement vers `environments:`. La convention `prod → main`
+(branche) doit être préservée. Le rendu ArgoCD et la CI doivent lire **la
+même** définition d'ordre (source unique : l'entrée d'inventaire).
+
 ## Axe 7 — Multi-tenancy GitLab
 
 **État actuel (partiel)** : le champ `group` existe déjà par app dans
@@ -136,6 +158,13 @@ complet, rayon d'explosion maximal — déjà signalé comme dette dans le PRD)
 par un **token de projet** (`project access token`) par couple
 `<app>`/`<app>-iac`, scopé au strict nécessaire. Touche `gitlab-projects-iac`
 (création des tokens) et le plumbing de secrets CI.
+
+**Pièges** : un *project bot* issu d'un access token ne peut pas être
+ajouté à un autre groupe/projet (limitation GitLab documentée dans les
+commentaires Terraform) — contraint la conception cross-groupe, notamment
+l'accès en lecture à `shared-ci/ci-templates` depuis le token d'une app
+d'un autre groupe. Les project access tokens expirent : prévoir une
+stratégie de rotation, sinon la CI casse silencieusement.
 
 ---
 
