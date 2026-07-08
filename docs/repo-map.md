@@ -43,6 +43,16 @@ Les fleches en pointilles marquent des dependances de deploiement/runtime
 (ArgoCD, orchestration cockpit), les fleches pleines des dependances de
 contenu (donnees, code, pipeline).
 
+Deux paires de repos ont une dependance dans les deux sens : ce n'est pas une
+erreur mais un bootstrap circulaire assume (`platform-bootstrap` ne peut pas
+s'auto-amorcer, cf. commentaire dans `argocd/root-app.yaml`) :
+- `gitlab-projects-iac` <-> `platform-gitops` : le CR Flux tf-controller qui
+  declenche le Terraform vit dans `platform-gitops`, mais ce meme Terraform
+  cree le projet GitLab de `platform-gitops` lui-meme.
+- `platform-bootstrap` <-> `platform-gitops` : `root-app.yaml` pointe en dur
+  vers le repo `platform-gitops`, qui a l'inverse a besoin d'ArgoCD (installe
+  par `platform-bootstrap`) pour etre synchronise.
+
 ```mermaid
 flowchart RL
     cockpit["cockpit\n(point d'entree, non-runtime)"]
@@ -58,16 +68,20 @@ flowchart RL
 
     platform_bootstrap -->|"requiert un cluster K8s"| infra_iac
     platform_gitops -.->|"necessite ArgoCD installe"| platform_bootstrap
+    platform_bootstrap -->|"repoURL fige dans root-app.yaml"| platform_gitops
     toolbox -->|"lit l'inventaire de"| platform_gitops
     gitlab_projects_iac -.->|"applique par le Flux CR tf-controller de"| platform_gitops
     gitlab_projects_iac -->|"consomme apps.auto.tfvars.json de"| toolbox
     ci_templates -->|"projet GitLab cree/mirrore par"| gitlab_projects_iac
+    helloworld -->|"projet GitLab cree/mirrore par"| gitlab_projects_iac
+    helloworld_iac -->|"projet GitLab cree/mirrore par"| gitlab_projects_iac
+    platform_gitops -->|"projet GitLab cree/mirrore par"| gitlab_projects_iac
     helloworld -->|"consomme le pipeline de"| ci_templates
     helloworld_iac -->|"manifests mis a jour par le pipeline de"| helloworld
     helloworld_iac -.->|"deploye par ArgoCD depuis"| platform_gitops
 
     cockpit -.->|"make -C ../infra-iac"| infra_iac
     cockpit -.->|"make -C ../platform-bootstrap"| platform_bootstrap
-    cockpit -.->|"lit platform.yml, statut ArgoCD"| platform_gitops
+    cockpit -.->|"ghcr-token-init ecrit flux-secrets/"| platform_gitops
     cockpit -.->|"expose le chemin (hors bootstrap principal)"| toolbox
 ```
