@@ -1,6 +1,7 @@
 TODO — Initiative extensibilité / généricité
 =============================================
 Suivi détaillé : docs/backlog-extensibilite.md
+Fiches exécutables (contexte, fichiers, étapes, critères) : docs/tasks-extensibilite.md
 Chaque axe s'implémente dans son repo propriétaire (jamais depuis control-plane),
 commit + push sur les deux remotes (origin puis gitlab).
 
