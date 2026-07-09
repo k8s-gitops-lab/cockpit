@@ -9,7 +9,7 @@ START_AT ?=
 STOP_AFTER ?=
 SNAPSHOT_NAME ?= cluster-ready
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-terraform-credentials argocd-password gitlab-password argocd-status ghcr-token-init ghcr-pull-secret-wait gitlab-git-credentials gitlab-projects-wait
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-terraform-credentials argocd-password gitlab-password argocd-status ghcr-token-init ghcr-pull-secret-wait gitlab-git-credentials gitlab-projects-wait argocd-apps-wait
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -100,6 +100,10 @@ gitlab-git-credentials: ## Verifie le PAT GitLab root stocke dans git-credential
 gitlab-projects-wait: ## Attend que le Terraform gitlab-iac (tf-controller) ait cree les projets GitLab applicatifs
 	@echo "==> cockpit: gitlab-projects-wait -> scripts/gitlab-iac-wait.py"; \
 	CONFIG="$(CONFIG)" python3 scripts/gitlab-iac-wait.py
+
+argocd-apps-wait: ## Attend que toutes les Applications ArgoCD soient Synced/Healthy (convergence apres creation des projets GitLab)
+	@echo "==> cockpit: argocd-apps-wait -> scripts/argocd-apps-wait.py"; \
+	CONFIG="$(CONFIG)" python3 scripts/argocd-apps-wait.py
 
 platform-down: ## Eteint les VMs de la plateforme sans les detruire
 	@$(ENV); \

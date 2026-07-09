@@ -50,6 +50,7 @@ STEPS: list[tuple[str, str, object]] = [
     ("ghcr-pull-secret", "ghcr-pull-secret-wait", pc.check_ghcr_secret),
     ("gitlab-git-creds", "gitlab-git-credentials", pc.check_git_creds),
     ("gitlab-projects", "gitlab-projects-wait", pc.check_gitlab_iac),
+    ("argocd-apps", "argocd-apps-wait", pc.check_apps_synced),
     ("platform-verify", "platform-verify", check_platform_verify),
 ]
 STEP_NAMES = [name for name, _, _ in STEPS]

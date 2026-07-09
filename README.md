@@ -150,6 +150,12 @@ platform-bootstrap-status` pour les consulter) :
   `git-credential` pour l'URL interne du cluster, et ne le (re)cree que s'il
   est absent, invalide ou a moins de 30 jours d'expiration
   (`--rotate` pour forcer la rotation).
+- `make gitlab-projects-wait` : attend que le Terraform `gitlab-iac`
+  (tf-controller) ait cree les projets GitLab applicatifs.
+- `make argocd-apps-wait` : attend que toutes les Applications ArgoCD soient
+  Synced/Healthy (apres la creation des projets GitLab, ArgoCD doit encore
+  rafraichir les repos et deployer — timeout `ARGOCD_APPS_TIMEOUT`,
+  defaut 900 s).
 - `make platform-verify` : smoke test final de bout en bout.
 
 Avant de sauter une étape marquée terminée, `bootstrap.py` rejoue son check
@@ -168,6 +174,8 @@ make snapshot-cluster
 make platform-bootstrap
 make ghcr-pull-secret-wait
 make gitlab-git-credentials
+make gitlab-projects-wait
+make argocd-apps-wait
 make platform-verify
 ```
 
