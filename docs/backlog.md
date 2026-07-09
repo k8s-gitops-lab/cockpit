@@ -221,11 +221,9 @@ normal de la plateforme (cf. `AGENTS.md`).
 
 ## Dette transverse
 
-- [ ] Repousser tous les commits en attente vers le remote `gitlab`
-  (toujours injoignable au 2026-07-08 ; commits déjà poussés sur `origin`,
-  cf. règle GitHub-fait-foi du `CLAUDE.md`). Pile en attente à cette date :
-  `ci-templates` +4, `helloworld` +5, `helloworld-iac` +1,
-  `platform-gitops` +4 commits.
+- [x] Repousser tous les commits en attente vers le remote `gitlab` — fait
+  le 2026-07-09 (GitLab de nouveau joignable) : `helloworld`,
+  `helloworld-iac` et `platform-gitops` poussés, `ci-templates` déjà à jour.
 
 (Les autres points de dette relevés — dérivation de `_normalize_app` depuis
 le JSON Schema, `gitlab_group_variable DOMAIN` manquante — sont déjà suivis
