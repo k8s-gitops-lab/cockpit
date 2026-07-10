@@ -238,6 +238,87 @@ infra mais sans app instrumentée (suite possible, non planifiée).
 
 ---
 
+## Migration GitLab self-hosted → GitLab.com (SaaS)
+
+> Décidé le 2026-07-10 : l'opérateur n'a pas de compte GitLab payant, mais
+> les runners self-hosted ne consomment pas le quota CI/CD du plan Free
+> (seuls les runners SaaS partagés sont limités en minutes) — pas de
+> blocage identifié pour ce lab mono-opérateur. Bénéfice induit : gitlab.com
+> a un certificat TLS public, ce qui supprime le contournement CA
+> auto-signée/Zscaler nécessaire aujourd'hui pour tout accès HTTPS au
+> GitLab local (cf. section Observabilité ci-dessus pour le même problème
+> côté Grafana Cloud) et le miroir local `to-be-continuous` (gitlab.com
+> résout `include:component` nativement, cf. `repo-map.md`).
+
+**Périmètre** : tous les repos du workspace passent en double hébergement
+GitHub (`origin`, déjà en place) + GitLab.com (`gitlab`, remplace
+l'instance locale `gitlab.192.168.33.100.nip.io`) en mode mirroring. Le
+Runner CI/CD reste self-hosted dans le cluster local (executor Kubernetes,
+arm64 préservé) mais s'enregistre contre gitlab.com au lieu du GitLab
+in-cluster. Le GitLab in-cluster (chart Helm, Application ArgoCD
+`platform-gitops/argocd/managed/gitlab.yaml`) est décommissionné en fin de
+migration, pas en début — bascule progressive, pas un big bang.
+
+**Cartographie des dépendances actuelles au GitLab in-cluster** (établie le
+2026-07-10, cf. repos cités) :
+1. **SSO ArgoCD** : connector Dex `type: gitlab` (`platform-gitops/argocd/
+   platform/argocd-config/argocd-cm.yaml`) pointe sur le GitLab local ;
+   l'Application OAuth est créée par
+   `platform-bootstrap/scripts/gitlab-dex-oauth-app.py` (auth root). Sur
+   gitlab.com il n'existe pas de mot de passe root exploitable par script :
+   l'Application OAuth devra être créée une fois manuellement (ou via PAT).
+2. **Terraform `gitlab-projects-iac`** : déjà authentifié par PAT
+   (`providers.tf`), pas par le root token directement — seul `gitlab_url`
+   (`variables.tf`, défaut local, `insecure = true`) et la génération du
+   PAT (`platform-bootstrap/scripts/gitlab-tf-credentials.py`, via root)
+   changent.
+3. **Runner** : sous-chart `gitlab-runner` du chart GitLab lui-même
+   (`platform-gitops/argocd/platform/gitlab/values-local.yaml`), token créé
+   par `platform-bootstrap/scripts/gitlab-runner-token.py`
+   (`POST /api/v4/user/runners`, instance-wide token) — sur gitlab.com
+   l'enregistrement se fait pareil via API avec un PAT, mais le runner doit
+   devenir un chart/Application autonome (il ne peut plus vivre en
+   sous-chart du GitLab qu'on décommissionne).
+4. **Repo credentials ArgoCD** : `platform-gitops/argocd/generated/apps/
+   helloworld/repo-creds.yaml` lit le mot de passe **root** du GitLab local
+   via `ClusterSecretStore` `gitlab-secrets` — mécanisme entièrement à
+   remplacer par un PAT dédié (recoupe l'axe 7 ci-dessus : same idée que
+   "token de projet" plutôt que credentials root partagées, périmètre élargi
+   par cette migration).
+5. **Bootstrap sequencing** : `platform-bootstrap/ansible/roles/
+   platform_bootstrap/tasks/main.yml` enchaîne les 3 scripts Python
+   `gitlab-*` après `wait_for_gitlab_ready` sur l'instance locale — la
+   logique d'attente disparaît (gitlab.com est toujours prêt), mais l'ordre
+   (credentials → Dex → runner) reste probablement valable.
+6. **Miroir `to-be-continuous`** : entièrement porté par
+   `gitlab-projects-iac/terraform/main.tf` (groupe + projets
+   `import_url`), recréable tel quel sur gitlab.com — mais devient inutile
+   dès que `ci-templates` résout les composants directement sur
+   `gitlab.com/to-be-continuous` (variable prédéfinie `$CI_SERVER_FQDN`,
+   déjà agnostique de l'instance).
+7. **Registry interne** : déjà désactivé (`registry.enabled: false`),
+   aucun impact — GHCR reste le registre.
+
+**Repos impactés** (constat 2026-07-10, détail par phase à affiner lors du
+séquencement) : `gitlab-projects-iac` (provider Terraform, groupe miroir),
+`platform-bootstrap` (3 scripts `gitlab-*`, séquence Ansible),
+`platform-gitops` (Dex config, repo-creds, retrait à terme de
+`argocd/managed/gitlab.yaml` + `gitlab-routes` + `gitlab-minio-patch`),
+`ci-templates` (retrait possible du miroir), `cockpit` (Makefile,
+`scripts/gitlab-git-creds.py`, docs `source-control.md`/`repo-map.md`),
+`infra-iac`/`helloworld`/`helloworld-iac` (docs mentionnant l'URL locale).
+
+**Risque** : élevé — touche l'authentification ArgoCD (SSO), les credentials
+Terraform et les credentials repo GitOps simultanément ; pas de session
+utilisateur payante pour valider certains comportements SaaS avant coupure.
+Bascule à faire en parallèle (nouveau flux gitlab.com validé avant retrait
+de l'ancien), pas en remplacement direct.
+
+**Statut** : démarré le 2026-07-10 (cartographie faite ; séquençage détaillé
+et implémentation en cours, voir plan de session).
+
+---
+
 ## Entretien courant
 
 Tâches hors initiative : montées de version, pins d'images, correctifs de
