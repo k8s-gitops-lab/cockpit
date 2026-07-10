@@ -12,13 +12,14 @@ Ne jamais modifier les fichiers directement dans l'interface GitLab (éditeur
 web, merge request, etc.). Toujours : modifier en local, committer, pousser.
 
 Tous les repos ont `origin` → `https://github.com/k8s-gitops-lab/<repo>`.
-Seuls 4 repos ont aussi un remote `gitlab` (GitLab local de la plateforme,
-chacun sous son groupe — aucun sous `root/`) :
+Seuls 4 repos ont aussi un remote `gitlab` (**gitlab.com**, groupe
+`k8s-gitops-lab` — migration depuis l'instance self-hosted du cluster,
+décommissionnée le 2026-07-10, cf. `docs/backlog.md`, bascule big bang) :
 
-- `ci-templates` → `.../shared-ci/ci-templates`
-- `helloworld` → `.../hello-groupe/helloworld`
-- `helloworld-iac` → `.../hello-groupe/helloworld-iac`
-- `platform-gitops` → `.../infra/platform-gitops`
+- `ci-templates` → `gitlab.com/k8s-gitops-lab/shared-ci/ci-templates`
+- `helloworld` → `gitlab.com/k8s-gitops-lab/hello-groupe/helloworld`
+- `helloworld-iac` → `gitlab.com/k8s-gitops-lab/hello-groupe/helloworld-iac`
+- `platform-gitops` → `gitlab.com/k8s-gitops-lab/infra/platform-gitops`
 
 Où pousser (détail et rôles : `docs/source-control.md`) :
 
@@ -37,14 +38,11 @@ Où pousser (détail et rôles : `docs/source-control.md`) :
   ```
   Pour les tags : `git push gitlab --tags && git push origin --tags`.
 
-  `platform-gitops` a en plus un miroir GitLab→GitHub automatique
-  (`gitlab_project_mirror.platform_gitops_to_github`, côté
-  `gitlab-projects-iac`) qui **force-écrase** `origin/main` pour qu'il
-  corresponde exactement à `gitlab/main` — un commit poussé seulement sur
-  `origin` pour ce repo est silencieusement perdu au prochain passage du
-  miroir s'il n'est pas aussi sur `gitlab`. Toujours pousser `gitlab`
-  d'abord pour ce repo, jamais `origin` seul (incident vécu le
-  2026-07-09 : 3 commits GitHub-only effacés par le miroir).
+  `platform-gitops` avait en plus un miroir GitLab→GitHub automatique côté
+  instance locale (force-écrasait `origin/main`) — décommissionné avec
+  l'instance locale ; pas encore reconstruit côté gitlab.com (dette,
+  cf. `docs/backlog.md`). En attendant, pousser `gitlab` puis `origin`
+  reste la marche à suivre pour ces 4 repos.
 
 ## Règle : tout commit finit sur GitHub
 
