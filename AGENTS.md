@@ -29,8 +29,8 @@ make snapshot-cluster  # Snapshot VirtualBox du cluster (avant platform-bootstra
 make restore-cluster   # Restaure le cluster depuis un snapshot VirtualBox
 make platform-from-snapshot # Restaure le snapshot puis rejoue platform-bootstrap -> verify
 make platform-bootstrap # Bootstrap ArgoCD + plateforme seule
-make platform-bootstrap START_AT=gitlab-tf-credentials # Reprendre à une étape
-make gitlab-terraform-credentials # Créer/rotater le PAT GitLab Terraform
+make platform-bootstrap START_AT=gitlab-runner-token-com # Reprendre à une étape
+make gitlab-reset      # ACTION DESTRUCTIVE : reset complet du groupe gitlab.com avant un bootstrap depuis zéro
 make argocd-status     # État ArgoCD
 ```
 

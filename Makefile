@@ -9,7 +9,7 @@ START_AT ?=
 STOP_AFTER ?=
 SNAPSHOT_NAME ?= cluster-ready
 
-.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify gitlab-terraform-credentials argocd-password gitlab-password argocd-status ghcr-token-init ghcr-pull-secret-wait gitlab-git-credentials gitlab-projects-wait argocd-apps-wait
+.PHONY: help validate env vm-images-build vm-images-add vm-images cluster-up cluster-from-images snapshot-cluster restore-cluster platform-up platform-provision platform-from-snapshot platform-bootstrap platform-bootstrap-status platform-bootstrap-reset platform-down platform-destroy platform-verify argocd-password gitlab-password argocd-status ghcr-token-init ghcr-pull-secret-wait gitlab-reset gitlab-git-credentials gitlab-projects-wait argocd-apps-wait
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-24s\033[0m %s\n", $$1, $$2}'
@@ -89,6 +89,10 @@ platform-verify: ## Smoke test de bout en bout : cluster, GitLab, ArgoCD Synced/
 	@echo "==> cockpit: platform-verify -> scripts/platform-verify.py"; \
 	CONFIG="$(CONFIG)" python3 scripts/platform-verify.py
 
+gitlab-reset: ## ACTION DESTRUCTIVE : supprime le groupe gitlab.com k8s-gitops-lab (a lancer avant platform-up pour un bootstrap reproductible depuis zero). Necessite GITLAB_TOKEN.
+	@echo "==> cockpit: gitlab-reset -> scripts/gitlab-reset.py"; \
+	python3 scripts/gitlab-reset.py
+
 gitlab-git-credentials: ## Verifie le PAT GitLab root stocke dans git-credential, le (re)cree si absent/invalide/proche expiration
 	@$(ENV); \
 	echo "==> cockpit: gitlab-git-credentials -> scripts/gitlab-git-creds.py"; \
@@ -115,13 +119,6 @@ platform-destroy: ## Detruit les VMs de la plateforme
 	echo "==> cockpit: platform-destroy -> make -C $$INFRASTRUCTURE_REPO destroy"; \
 	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" destroy
 	@rm -f .bootstrap-state.json
-
-gitlab-terraform-credentials: ## Cree/rotate le PAT GitLab consomme par Terraform
-	@$(ENV); \
-	echo "==> cockpit: gitlab-terraform-credentials -> make -C $$PLATFORM_REPO_ROOT gitlab-tf-credentials"; \
-	$(MAKE_BIN) -C "$$PLATFORM_REPO_ROOT" gitlab-tf-credentials \
-	  GITLAB_DOMAIN="$$GITLAB_DOMAIN" \
-	  GITLAB_NAMESPACE="$$GITLAB_NAMESPACE"
 
 argocd-password: ## Affiche le mot de passe admin initial d'ArgoCD
 	@$(ENV); \

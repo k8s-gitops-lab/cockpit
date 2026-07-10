@@ -551,32 +551,47 @@ de ce qui est déjà fait (miroir de contenu). Le mécanisme de cutover
 (`argocdRepoURL` + préfixe de groupe + `CI_TEMPLATES_PROJECT_PATH`) est
 posé et réutilisable pour toute future app.
 
-**Dette découverte, non traitée** : `cockpit/scripts/gitlab-git-creds.py`
-+ cible Make `gitlab-git-credentials` (PAT root, git-credential local) et
-probablement des hypothèses dans `scripts/platform-verify.py` (« GitLab,
-ArgoCD Synced/Healthy... ») ciblent encore l'instance locale
-décommissionnée — `make platform-up`/`platform-provision` les appellent
-toujours. Repéré en vérifiant la synchro GitHub/gitlab.com le 2026-07-10,
-pas encore corrigé.
+**Dette découverte, partiellement traitée** : `cockpit/scripts/
+gitlab-git-creds.py` + cible Make `gitlab-git-credentials` (PAT root,
+git-credential local) ciblent encore l'instance locale décommissionnée —
+**plus grave que noté initialement** : cette étape fait partie de la
+séquence automatique `make platform-up` (`scripts/bootstrap.py::STEPS`),
+pas juste d'une cible manuelle optionnelle — `platform-up` échoue donc
+aujourd'hui à cette étape (secret `gitlab-gitlab-initial-root-password`
+introuvable, namespace supprimé). Probablement aussi des hypothèses
+dans `scripts/platform-verify.py`. Pas encore corrigé (nécessite de
+décider si un équivalent gitlab.com est utile ou si l'étape doit
+disparaître). Repéré le 2026-07-10 en vérifiant la synchro GitHub/
+gitlab.com. **Corrigé au passage** : `cockpit`'s `gitlab-terraform-
+credentials` (cible manuelle, hors séquence automatique) appelait
+`make -C platform-bootstrap gitlab-tf-credentials`, une cible supprimée
+en Phase 7 — cible cockpit retirée.
 
-**State Terraform migré vers gitlab.com** (demandé le 2026-07-10) : le CR
-`gitlab-iac-com` utilisait un backend Kubernetes (`tfstate-default-
-gitlab-projects-iac-com`, secret `flux-system`) — remplacé par le backend
-HTTP GitLab-managed natif (projet `infra/platform-gitops`, id `84305765`,
-nom d'état `gitlab-projects-iac-com`, `docs.gitlab.com/user/
-infrastructure/iac/terraform_state/`). Séquence suivie pour éviter tout
-plan de recréation : contenu du secret Kubernetes extrait, poussé
-manuellement au nouvel endpoint HTTP (`POST` sur `/api/v4/projects/
-84305765/terraform/state/gitlab-projects-iac-com`), *puis* le CR basculé
-(`backendConfig.customConfiguration` avec le bloc `backend "http"`,
-credentials via `backendConfigsFrom` → secret `gitlabcom-credentials`
-existant, jamais en clair dans le CR). Vérifié en direct après bascule :
-`serial`/`lineage` identiques avant/après, premier reconcile contre le
-nouveau backend = **« No drift »** (aucune ressource recréée), les 3
-sous-groupes et leurs projets confirmés intacts via l'API. L'ancien
-secret `tfstate-default-gitlab-projects-iac-com` reste en place pour
-l'instant (filet de sécurité) — à supprimer une fois la confiance établie
-sur quelques cycles de reconciliation.
+**State Terraform de `gitlab-iac-com` — backend Kubernetes conservé**
+(décision du 2026-07-10) : essayé un backend HTTP GitLab-managed natif
+(projet `infra/platform-gitops`, migration vérifiée « No drift », cf.
+historique git) puis **revert** : l'opérateur veut un reset complet de
+gitlab.com (groupe + sous-groupes + projets) avant chaque bootstrap de
+la plateforme, pour des cycles de test reproductibles (cf. script
+`gitlab-reset.py` ci-dessous) — stocker le state *dans* un projet
+gitlab.com qui est lui-même supprimé par ce reset recrée la dépendance
+circulaire (le state du tout premier apply qui recrée ce projet n'a
+nulle part où vivre). Le backend Kubernetes n'a pas ce problème :
+cluster et tofu-controller existent avant toute ressource gitlab.com.
+Le secret `tfstate-default-gitlab-projects-iac-com` (jamais désynchronisé
+pendant l'aller-retour, même `serial`/`lineage` vérifiés) reste la
+source de vérité.
+
+**Script de reset gitlab.com ajouté** (`cockpit/scripts/gitlab-reset.py`,
+cible `make gitlab-reset`) : supprime définitivement (`permanently_remove=
+true`) le groupe racine `k8s-gitops-lab` et tout son contenu — sous-groupes,
+projets, issues, MR, pipelines. Confirmation interactive par défaut
+(`--yes` pour l'automatiser), PAT fourni via `GITLAB_TOKEN` (pas de
+dépendance au cluster : peut tourner avant même que celui-ci existe).
+À lancer avant `platform-up`/`platform-provision` pour un cycle
+entièrement reproductible depuis zéro des deux côtés (cluster ET
+gitlab.com). Pas encore intégré automatiquement dans `platform-up` —
+action destructive, reste une étape manuelle explicite pour l'instant.
 
 ---
 
