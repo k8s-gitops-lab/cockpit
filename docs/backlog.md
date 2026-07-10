@@ -195,6 +195,38 @@ naissent conformes au pattern. **À traiter un autre jour** (décision
 
 ---
 
+## Observabilité SaaS (Grafana Cloud)
+
+> Décidé le 2026-07-10 : `docs/prod-constraints.md` liste depuis le début
+> l'absence de centralisation logs/métriques comme un gap ("Centralize
+> logs", "Collect metrics with alerting, not only dashboards"). L'opérateur
+> a un stack Grafana Cloud existant (SaaS) et souhaite y brancher le lab
+> plutôt que d'auto-héberger Prometheus Operator/Loki/Tempo — cohérent avec
+> le choix déjà fait pour GHCR (registre externe plutôt qu'interne au
+> cluster).
+
+**Périmètre** : metrics + logs + traces via Grafana Alloy (chart
+`grafana/k8s-monitoring`), push sortant uniquement (compatible avec
+l'absence d'exposition Internet entrante du lab, cf.
+`spec-technique.md`). Autodiscovery des pods par annotations
+`prometheus.io/scrape` (pas de CRD Prometheus Operator introduite). Les
+traces sont plombées bout-en-bout côté infra (réception OTLP) mais aucune
+app n'émet de spans dans ce lot — seule l'instrumentation métriques est
+faite.
+
+**Repos propriétaires** :
+- `platform-gitops` : add-on plateforme (`argocd/managed/
+  grafana-k8s-monitoring.yaml`, secret SOPS + `ExternalSecret`), suit le
+  pattern existant (GitLab, External Secrets).
+- `helloworld` : instrumentation métriques HTTP de `helloworld-svc`
+  (`axum-prometheus`, route `/metrics`).
+- `helloworld-iac` : annotations de scrape sur le `Deployment`
+  `helloworld-svc`.
+
+**Statut** : en cours (2026-07-10).
+
+---
+
 ## Entretien courant
 
 Tâches hors initiative : montées de version, pins d'images, correctifs de
