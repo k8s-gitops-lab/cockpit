@@ -559,6 +559,25 @@ décommissionnée — `make platform-up`/`platform-provision` les appellent
 toujours. Repéré en vérifiant la synchro GitHub/gitlab.com le 2026-07-10,
 pas encore corrigé.
 
+**State Terraform migré vers gitlab.com** (demandé le 2026-07-10) : le CR
+`gitlab-iac-com` utilisait un backend Kubernetes (`tfstate-default-
+gitlab-projects-iac-com`, secret `flux-system`) — remplacé par le backend
+HTTP GitLab-managed natif (projet `infra/platform-gitops`, id `84305765`,
+nom d'état `gitlab-projects-iac-com`, `docs.gitlab.com/user/
+infrastructure/iac/terraform_state/`). Séquence suivie pour éviter tout
+plan de recréation : contenu du secret Kubernetes extrait, poussé
+manuellement au nouvel endpoint HTTP (`POST` sur `/api/v4/projects/
+84305765/terraform/state/gitlab-projects-iac-com`), *puis* le CR basculé
+(`backendConfig.customConfiguration` avec le bloc `backend "http"`,
+credentials via `backendConfigsFrom` → secret `gitlabcom-credentials`
+existant, jamais en clair dans le CR). Vérifié en direct après bascule :
+`serial`/`lineage` identiques avant/après, premier reconcile contre le
+nouveau backend = **« No drift »** (aucune ressource recréée), les 3
+sous-groupes et leurs projets confirmés intacts via l'API. L'ancien
+secret `tfstate-default-gitlab-projects-iac-com` reste en place pour
+l'instant (filet de sécurité) — à supprimer une fois la confiance établie
+sur quelques cycles de reconciliation.
+
 ---
 
 ## Entretien courant
