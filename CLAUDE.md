@@ -22,19 +22,29 @@ chacun sous son groupe — aucun sous `root/`) :
 
 Où pousser (détail et rôles : `docs/source-control.md`) :
 
-- Repos GitHub-first (défaut, y compris `platform-gitops`) :
+- Repos GitHub-first (défaut) :
   ```bash
   git push origin main
   ```
-- Repos GitLab-first (`ci-templates`, `helloworld`, `helloworld-iac` — la CI
-  s'exerce sur GitLab, qui fait foi pour eux) : committer côté GitLab puis
-  répercuter sur GitHub (`scripts/commit-gitlab-app-repos.sh` enchaîne
-  pull --rebase, push GitLab et miroir GitHub) :
+- Repos GitLab-first (`ci-templates`, `helloworld`, `helloworld-iac`,
+  `platform-gitops` — la CI s'exerce sur GitLab, qui fait foi pour eux) :
+  committer côté GitLab puis répercuter sur GitHub
+  (`scripts/commit-gitlab-app-repos.sh` enchaîne pull --rebase, push GitLab
+  et miroir GitHub) :
   ```bash
   git push gitlab main
   git push origin main
   ```
   Pour les tags : `git push gitlab --tags && git push origin --tags`.
+
+  `platform-gitops` a en plus un miroir GitLab→GitHub automatique
+  (`gitlab_project_mirror.platform_gitops_to_github`, côté
+  `gitlab-projects-iac`) qui **force-écrase** `origin/main` pour qu'il
+  corresponde exactement à `gitlab/main` — un commit poussé seulement sur
+  `origin` pour ce repo est silencieusement perdu au prochain passage du
+  miroir s'il n'est pas aussi sur `gitlab`. Toujours pousser `gitlab`
+  d'abord pour ce repo, jamais `origin` seul (incident vécu le
+  2026-07-09 : 3 commits GitHub-only effacés par le miroir).
 
 ## Règle : tout commit finit sur GitHub
 
