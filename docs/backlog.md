@@ -504,7 +504,31 @@ gitlab.com (TLS public, aucun contournement requis).
    `semantic-release` tous **success** ; commit de déploiement réel
    constaté sur la branche `dev` de `helloworld-iac` (gitlab.com) ;
    Application ArgoCD `helloworld-dev` re-synced sur ce commit, nouveaux
-   pods `2c12dbab` confirmés en direct sur le cluster.
+   pods `2c12dbab` déployés — **mais en `CrashLoopBackOff`**, cf. bug
+   ci-dessous. La chaîne GitOps (build → publish → commit manifests →
+   sync ArgoCD) est donc validée de bout en bout ; le contenu de l'image
+   produite, non.
+
+**🔴 Bug découvert (non résolu) — images buildées en amd64 au lieu
+d'arm64** : les pods `helloworld-svc`/`helloworld-gui` déployés par ce
+test crash-loopent avec `exec format error`. Confirmé : le nœud cible est
+arm64 (`uname -m` = `aarch64`), les anciens pods (image `f4a85af1`,
+buildés avant la migration) sont bien `aarch64` et tournent normalement,
+mais le job `docker-buildah-build` de ce pipeline a tourné avec
+`OS/Arch: linux/amd64` / `BuildPlatform: linux/amd64` (visible dans son
+trace) — l'image produite est donc amd64, incompatible avec le cluster.
+Le runner `gitlab-runner-com` reprend pourtant la config du runner local
+telle quelle (même version de chart 0.88.2, même `helper_image` pinné
+arm64) ; aucune différence identifiée dans les values qui expliquerait ce
+changement de comportement de sélection d'architecture par le composant
+`to-be-continuous/docker`. **Pas de service coupé** : les anciens pods
+(arm64) restent up, ArgoCD affiche seulement `Degraded` sur
+`helloworld-dev` le temps que les nouveaux pods crash-loopent — mais tout
+nouveau déploiement réel via ce runner produira des images cassées tant
+que ce n'est pas corrigé. À investiguer avant de basculer une vraie
+release dessus (piste : `--platform`/variable d'entrée du composant
+`to-be-continuous/docker`, ou différence de scheduling entre sous-chart
+et Application standalone).
 
 **Dette connue, non bloquante** : `docker-sbom` (scan de sécurité,
 composant `to-be-continuous`) échoue avec `Permission denied` en écrivant
