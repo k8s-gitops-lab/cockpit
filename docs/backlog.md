@@ -582,16 +582,21 @@ Le secret `tfstate-default-gitlab-projects-iac-com` (jamais désynchronisé
 pendant l'aller-retour, même `serial`/`lineage` vérifiés) reste la
 source de vérité.
 
-**Script de reset gitlab.com ajouté** (`cockpit/scripts/gitlab-reset.py`,
-cible `make gitlab-reset`) : supprime définitivement (`permanently_remove=
-true`) le groupe racine `k8s-gitops-lab` et tout son contenu — sous-groupes,
-projets, issues, MR, pipelines. Confirmation interactive par défaut
-(`--yes` pour l'automatiser), PAT fourni via `GITLAB_TOKEN` (pas de
-dépendance au cluster : peut tourner avant même que celui-ci existe).
-À lancer avant `platform-up`/`platform-provision` pour un cycle
-entièrement reproductible depuis zéro des deux côtés (cluster ET
-gitlab.com). Pas encore intégré automatiquement dans `platform-up` —
-action destructive, reste une étape manuelle explicite pour l'instant.
+**Script de reset gitlab.com ajouté et intégré à `platform-destroy`**
+(`cockpit/scripts/gitlab-reset.py`) : supprime définitivement
+(`permanently_remove=true`) le groupe racine `k8s-gitops-lab` et tout son
+contenu — sous-groupes, projets, issues, MR, pipelines. `make
+platform-destroy` l'appelle désormais automatiquement après avoir détruit
+les VMs (`--yes`, pas de prompt — cohérent avec le reste de cette cible
+qui ne demande déjà aucune confirmation), à condition que `GITLAB_TOKEN`
+soit exporté ; sinon l'étape est **sautée avec un avertissement clair**,
+sans faire échouer la destruction des VMs (le token n'est pas censé
+bloquer un teardown qui n'a par ailleurs rien à voir avec gitlab.com).
+`make gitlab-reset` reste disponible seul (reset gitlab.com sans toucher
+aux VMs). Résultat : `make platform-destroy` puis `make platform-up`
+donne un cycle entièrement reproductible depuis zéro des deux côtés
+(cluster ET gitlab.com), sans étape manuelle si `GITLAB_TOKEN` est déjà
+dans l'environnement de l'opérateur.
 
 ---
 

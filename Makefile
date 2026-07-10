@@ -114,11 +114,17 @@ platform-down: ## Eteint les VMs de la plateforme sans les detruire
 	echo "==> cockpit: platform-down -> make -C $$INFRASTRUCTURE_REPO down"; \
 	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" down
 
-platform-destroy: ## Detruit les VMs de la plateforme
+platform-destroy: ## Detruit les VMs de la plateforme et reinitialise le groupe gitlab.com (GITLAB_TOKEN requis pour ce dernier volet)
 	@$(ENV); \
 	echo "==> cockpit: platform-destroy -> make -C $$INFRASTRUCTURE_REPO destroy"; \
 	$(MAKE_BIN) -C "$$INFRASTRUCTURE_REPO" destroy
 	@rm -f .bootstrap-state.json
+	@if [ -n "$$GITLAB_TOKEN" ]; then \
+	  echo "==> cockpit: platform-destroy -> scripts/gitlab-reset.py"; \
+	  python3 scripts/gitlab-reset.py --yes; \
+	else \
+	  echo "==> cockpit: GITLAB_TOKEN absent, gitlab.com non reinitialise (lancer 'GITLAB_TOKEN=<pat> make gitlab-reset' a la main)"; \
+	fi
 
 argocd-password: ## Affiche le mot de passe admin initial d'ArgoCD
 	@$(ENV); \
