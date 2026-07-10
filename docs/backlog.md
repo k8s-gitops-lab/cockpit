@@ -209,21 +209,32 @@ naissent conformes au pattern. **À traiter un autre jour** (décision
 `grafana/k8s-monitoring`), push sortant uniquement (compatible avec
 l'absence d'exposition Internet entrante du lab, cf.
 `spec-technique.md`). Autodiscovery des pods par annotations
-`prometheus.io/scrape` (pas de CRD Prometheus Operator introduite). Les
+`k8s.grafana.com/scrape` (pas de CRD Prometheus Operator introduite). Les
 traces sont plombées bout-en-bout côté infra (réception OTLP) mais aucune
 app n'émet de spans dans ce lot — seule l'instrumentation métriques est
-faite.
+faite. Logs de tous les pods du cluster collectés sans annotation requise
+(`podLogsViaLoki`), donc `helloworld` en bénéficie déjà nativement sur ses
+4 environnements — complété par des logs structurés JSON côté app et un
+label `app.kubernetes.io/name` pour un `service_name` Loki propre.
+
+Le trafic sortant de ce cluster passe par une inspection TLS d'entreprise
+(Zscaler) : la CA correspondante (même certificat que
+`helloworld-svc/certs/zscaler-root-ca.crt`) a dû être injectée dans le
+secret consommé par Alloy, sans quoi tout push vers `*.grafana.net`
+échouait silencieusement ou en erreur selon le composant.
 
 **Repos propriétaires** :
 - `platform-gitops` : add-on plateforme (`argocd/managed/
   grafana-k8s-monitoring.yaml`, secret SOPS + `ExternalSecret`), suit le
   pattern existant (GitLab, External Secrets).
 - `helloworld` : instrumentation métriques HTTP de `helloworld-svc`
-  (`axum-prometheus`, route `/metrics`).
-- `helloworld-iac` : annotations de scrape sur le `Deployment`
-  `helloworld-svc`.
+  (`axum-prometheus`, route `/metrics`) + logs structurés JSON
+  (`tracing`/`tracing-subscriber`/`tower-http`).
+- `helloworld-iac` : annotations de scrape + label `app.kubernetes.io/name`
+  sur les `Deployment` `helloworld-svc`/`helloworld-gui`.
 
-**Statut** : en cours (2026-07-10).
+**Statut** : fait (2026-07-10) pour metrics+logs ; traces plombées côté
+infra mais sans app instrumentée (suite possible, non planifiée).
 
 ---
 
