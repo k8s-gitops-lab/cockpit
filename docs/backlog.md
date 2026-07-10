@@ -281,10 +281,19 @@ migration, pas en début — bascule progressive, pas un big bang.
 3. **Runner** : sous-chart `gitlab-runner` du chart GitLab lui-même
    (`platform-gitops/argocd/platform/gitlab/values-local.yaml`), token créé
    par `platform-bootstrap/scripts/gitlab-runner-token.py`
-   (`POST /api/v4/user/runners`, instance-wide token) — sur gitlab.com
-   l'enregistrement se fait pareil via API avec un PAT, mais le runner doit
-   devenir un chart/Application autonome (il ne peut plus vivre en
-   sous-chart du GitLab qu'on décommissionne).
+   (`POST /api/v4/user/runners`, `runner_type: instance_type` — requiert
+   d'être admin de l'instance GitLab). Validé le 2026-07-10 : sur gitlab.com
+   `instance_type` échoue (pas admin de l'instance SaaS) — il faut
+   `runner_type: group_type` + `group_id` (le PAT, propriétaire du groupe
+   `k8s-gitops-lab`, id `137124101`, suffit), testé en aller-retour
+   création/suppression via l'API (`POST`/`DELETE /api/v4/user/runners`),
+   jeton `glrt-…` obtenu puis le runner de test supprimé — aucune ressource
+   laissée derrière. Reste à faire : sortir `gitlab-runner` en
+   chart/Application autonome (il ne peut plus vivre en sous-chart du
+   GitLab qu'on décommissionne), avec le tuning arm64/sécurité actuel
+   (`helper_image` arm64, `build_container_security_context.run_as_user:
+   0`, limites CPU/mémoire) à reporter tel quel — periemètre non trivial,
+   pas encore implémenté.
 4. **Repo credentials ArgoCD** : `platform-gitops/argocd/generated/apps/
    helloworld/repo-creds.yaml` lit le mot de passe **root** du GitLab local
    via `ClusterSecretStore` `gitlab-secrets` — mécanisme entièrement à
