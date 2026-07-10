@@ -397,13 +397,40 @@ les pods de job restent couverts par `CUSTOM_CA_CERTS` côté
 description `k3d-poc-devops-com`) — TLS et auth fonctionnent bout en
 bout, aucune pipeline réelle basculée dessus pour l'instant.
 
-**Reste à faire (phases suivantes, séquencement à détailler)** :
-séquencement bootstrap, miroir `to-be-continuous`, registry — et, pour
-clore réellement le point repo-creds, le cutover du champ `repoURL`
-consommé par `app-data.yaml` (aujourd'hui dérivé par convention vers le
-GitLab local, cf. axe 2) vers gitlab.com, qui est aussi ce qui ferait
-réellement transiter une pipeline sur le nouveau runner. Aucun
-consommateur réel du GitLab local n'est encore basculé.
+**Phase 6 (cutover repoURL — premier consommateur réel basculé)** faite le
+2026-07-10 : `helloworld` est la première app dont le déploiement GitOps
+tourne réellement depuis gitlab.com. Deux corrections minimales requises
+(`platform-bootstrap`) : `platform_inventory.py::_normalize_app` écrasait
+`manifests.argocdRepoURL` sans condition — seul champ à ne pas suivre le
+pattern « dérivé si absent » des autres, alors que le schéma JSON
+autorisait déjà la surcharge (axe 1) ; corrigé pour la respecter.
+`render-argocd-apps.py::repo_creds` générait toujours l'`ExternalSecret`
+racine du GitLab local, quelle que soit l'URL cible — ne le génère plus
+que si `argocdRepoURL` pointe encore vers l'instance in-cluster.
+`argocd/apps/helloworld.yaml` surcharge désormais `manifests.
+argocdRepoURL` vers gitlab.com ; `make argocd-apps-render` a régénéré les
+manifests (repo-creds.yaml local supprimé, remplacé par le secret
+`gitlabcom-helloworld-iac-repo` déjà en place depuis la Phase 3).
+
+**Précaution prise avant bascule** : les 4 branches (`dev`/`rec`/`preprod`/
+`main`) de `helloworld-iac` vérifiées identiques entre `gitlab` (local) et
+`gitlabcom` — seul `main` avait été poussé en Phase 1, les 3 autres
+poussées juste avant ce commit.
+
+**Vérifié en direct sur le cluster après bascule** : `AppProject
+helloworld.sourceRepos` = gitlab.com ; l'ancien `ExternalSecret`/`Secret`
+`gitlab-helloworld-iac-repo` prune proprement ; les 4 Applications
+(`helloworld-{dev,rec,preprod,prod}`) re-ciblées sur gitlab.com,
+`Synced`/`Healthy`, chacune sur le même SHA que la branche locale
+correspondante (aucune divergence de contenu) ; pods applicatifs non
+redémarrés (`restarts=0`, âge antérieur au cutover) — bascule
+transparente, zéro interruption.
+
+**Reste à faire** : séquencement bootstrap, miroir `to-be-continuous`,
+registre (déjà sans impact). `helloworld` est le seul consommateur réel
+basculé — les autres repos (`ci-templates`, `platform-gitops` lui-même)
+restent sur l'instance locale par défaut, migrables app par app avec le
+même mécanisme désormais en place.
 
 **Dette résiduelle Phase 4** : le pod `argocd-dex-server` live porte encore
 le patch impératif de la Phase 4 initiale (volume/`SSL_CERT_FILE` monté
