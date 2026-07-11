@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
-"""Importe gitlab_group.root dans le state Terraform en-cluster de gitlab-iac-com.
+"""Réimporte dans le state Terraform en-cluster de gitlab-iac-com toute
+ressource du module (gitlab_group, gitlab_project, gitlab_group_variable)
+qui existe déjà sur gitlab.com mais n'est pas (ou plus) trackée.
 
 Le groupe racine gitlab.com `k8s-gitops-lab` est persistant (création d'un
 groupe top-level bloquée côté API par une vérification anti-abus, cf.
 scripts/gitlab-reset.py) : il est créé une fois pour toutes manuellement via
-l'UI, et `gitlab-reset.py` ne le supprime plus jamais.
+l'UI, et `gitlab-reset.py` ne le supprime plus jamais. Les variables de
+groupe (CUSTOM_CA_CERTS, INTERNAL_GITLAB_HOST, ...) vivent sur ce même
+groupe racine et lui survivent donc tout autant. Les sous-groupes
+(infra/shared-ci/hello-groupe) et projets sont en principe vidés par
+`gitlab-reset.py` à chaque bootstrap -- mais si ce reset n'a pas tourné (ou
+si un apply précédent les a recréés avant que son state ne soit persisté),
+ils peuvent eux aussi exister déjà sans être trackés.
 
 Le state Terraform de `gitlab-iac-com`, lui, vit dans un Secret Kubernetes
 (`tfstate-default-gitlab-projects-iac-com`, namespace `flux-system`) qui est
 neuf à chaque rebuild complet du cluster (`make platform-destroy` puis
 `make platform-up`). Sans réimport, le premier `terraform apply` de
-tf-controller tente de recréer `gitlab_group.root` -> `403 Forbidden`, ce qui
-bloque toute la chaîne (sous-groupes/projets/variables gitlab.com jamais
-créés, donc aussi les `git push gitlab` des 4 repos GitLab-first).
+tf-controller tente de recréer une ressource déjà existante -> `403` (groupe
+racine) ou `400 has already been taken` (sous-groupes, projets, variables),
+ce qui bloque toute la chaîne (donc aussi les `git push gitlab` des 4 repos
+GitLab-first).
 
-Convergent : si le state en-cluster connaît déjà `gitlab_group.root` (mêmes
-critères que platform_checks.check_gitlab_tf_state_seeded), ne fait rien.
+Convergent : n'importe que ce qui manque encore au state en-cluster parmi
+les ressources du module dont l'équivalent existe déjà sur gitlab.com. Si
+tout est déjà à jour, ne fait rien.
 
 Usage :
   GITLAB_TOKEN=<pat> GITHUB_TOKEN=<pat> python3 scripts/gitlab-tf-state-seed.py
@@ -24,12 +34,14 @@ Usage :
   GITLAB_TOKEN=<pat> GITHUB_TOKEN=<pat> make gitlab-tf-state-seed
 
 Nécessite le binaire `terraform` en local (même version que
-gitlab-projects-iac/terraform-gitlabcom/versions.tf) et un kubectl déjà
-pointé sur le cluster cible.
+gitlab-projects-iac/terraform/versions.tf) et un kubectl déjà pointé sur le
+cluster cible.
 """
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -40,6 +52,86 @@ import platform_checks as pc
 
 BACKEND_SECRET_SUFFIX = "gitlab-projects-iac-com"
 BACKEND_NAMESPACE = "flux-system"
+
+# environment_scope = "*" pour toutes les gitlab_group_variable du module
+# (main.tf) -- pas d'usage de scopes multiples ici, cf. format d'import
+# `<group_id>:<key>:<environment_scope>` du provider.
+ENVIRONMENT_SCOPE = "*"
+
+GROUP_VARIABLE_BLOCK_RE = re.compile(
+    r'resource\s+"gitlab_group_variable"\s+"(\w+)"\s*\{([^}]*)\}', re.DOTALL
+)
+GROUP_VARIABLE_KEY_RE = re.compile(r'key\s*=\s*"([A-Za-z0-9_]+)"')
+
+GROUP_BLOCK_RE = re.compile(r'resource\s+"gitlab_group"\s+"(\w+)"\s*\{([^}]*)\}', re.DOTALL)
+PROJECT_BLOCK_RE = re.compile(r'resource\s+"gitlab_project"\s+"(\w+)"\s*\{([^}]*)\}', re.DOTALL)
+PATH_RE = re.compile(r'\bpath\s*=\s*"([^"]+)"')
+PARENT_ID_RE = re.compile(r'parent_id\s*=\s*gitlab_group\.(\w+)\.id')
+NAMESPACE_ID_RE = re.compile(r'namespace_id\s*=\s*gitlab_group\.(\w+)\.id')
+
+
+def parse_group_variable_resources(main_tf: str) -> list[tuple[str, str]]:
+    """Extrait (nom_ressource, clé) de chaque bloc gitlab_group_variable de main.tf."""
+    result = []
+    for name, body in GROUP_VARIABLE_BLOCK_RE.findall(main_tf):
+        key_match = GROUP_VARIABLE_KEY_RE.search(body)
+        if key_match:
+            result.append((name, key_match.group(1)))
+    return result
+
+
+def parse_groups(main_tf: str) -> dict[str, tuple[str, str | None]]:
+    """Extrait {nom_ressource: (path, nom_ressource_parent_ou_None)} de main.tf.
+
+    Ignore silencieusement les blocs for_each (ex. gitlab_group.app) : leur
+    path/parent_id sont des expressions (each.key, ...), pas des littéraux --
+    traités séparément par les instances dynamiques (cf. dynamic_app_groups).
+    """
+    groups = {}
+    for name, body in GROUP_BLOCK_RE.findall(main_tf):
+        path_match = PATH_RE.search(body)
+        if path_match is None:
+            continue
+        parent_match = PARENT_ID_RE.search(body)
+        groups[name] = (path_match.group(1), parent_match.group(1) if parent_match else None)
+    return groups
+
+
+def parse_projects(main_tf: str) -> dict[str, tuple[str, str]]:
+    """Extrait {nom_ressource: (path, nom_ressource_groupe_parent)} de main.tf.
+
+    Ignore silencieusement les blocs for_each (ex. gitlab_project.app) --
+    cf. parse_groups.
+    """
+    projects = {}
+    for name, body in PROJECT_BLOCK_RE.findall(main_tf):
+        path_match = PATH_RE.search(body)
+        namespace_match = NAMESPACE_ID_RE.search(body)
+        if path_match is None or namespace_match is None:
+            continue
+        projects[name] = (path_match.group(1), namespace_match.group(1))
+    return projects
+
+
+def dynamic_app_groups(apps: list[dict]) -> set[str]:
+    """Groupes dédiés par app (gitlab_group.app[for_each], cf. main.tf locals.app_groups)."""
+    return {app["group"] for app in apps}
+
+
+def dynamic_app_projects(apps: list[dict]) -> dict[str, str]:
+    """{nom_projet: nom_groupe} pour <app> et <app>-iac (gitlab_project.app[for_each],
+    cf. main.tf locals.app_projects)."""
+    projects = {}
+    for app in apps:
+        projects[app["name"]] = app["group"]
+        projects[f"{app['name']}-iac"] = app["group"]
+    return projects
+
+
+def full_group_path(groups: dict[str, tuple[str, str | None]], name: str) -> str:
+    path, parent = groups[name]
+    return path if parent is None else f"{full_group_path(groups, parent)}/{path}"
+
 
 BACKEND_OVERRIDE_TF = """terraform {
   backend "kubernetes" {
@@ -68,11 +160,12 @@ def main() -> None:
 
     values = pc.load_values()
 
-    ok, detail = pc.check_gitlab_tf_state_seeded(values)
-    if ok:
-        print(f"OK : {detail}, rien à faire.")
-        return
-    print(f"Seed nécessaire : {detail}.")
+    terraform_dir = pc.repo_path(values, "GITLAB_IAC_REPO_ROOT") / "terraform"
+    if not terraform_dir.is_dir():
+        sys.exit(f"Module Terraform introuvable : {terraform_dir}")
+
+    tracked, detail = pc.load_gitlab_tf_state_resources(values)
+    tracked = tracked or set()
 
     group_path = values["GITLAB_GROUP"]
     status, group = pc.gitlab_api(
@@ -83,15 +176,100 @@ def main() -> None:
             f"Groupe '{group_path}' introuvable sur {values['GITLAB_URL']} -- doit être créé une fois "
             "manuellement via l'UI (création top-level bloquée côté API), puis importé "
             "dans l'état Terraform (cf. commentaire sur gitlab_group.root dans "
-            "gitlab-projects-iac/terraform-gitlabcom/main.tf)."
+            "gitlab-projects-iac/terraform/main.tf)."
         )
     if status != 200 or not isinstance(group, dict):
         sys.exit(f"Erreur lecture groupe '{group_path}': {status} {group}")
     group_id = group["id"]
 
-    terraform_dir = pc.repo_path(values, "GITLAB_IAC_REPO_ROOT") / "terraform-gitlabcom"
-    if not terraform_dir.is_dir():
-        sys.exit(f"Module Terraform introuvable : {terraform_dir}")
+    need_root_import = ("gitlab_group", "root") not in tracked
+
+    status, remote_vars = pc.gitlab_api(
+        values["GITLAB_URL"], f"/api/v4/groups/{group_id}/variables?per_page=100", token=gitlab_token
+    )
+    if status != 200 or not isinstance(remote_vars, list):
+        sys.exit(f"Erreur lecture variables du groupe {group_id}: {status} {remote_vars}")
+    remote_keys = {v["key"] for v in remote_vars}
+
+    main_tf = (terraform_dir / "main.tf").read_text()
+    pending_variables = [
+        (name, key)
+        for name, key in parse_group_variable_resources(main_tf)
+        if key in remote_keys and ("gitlab_group_variable", name) not in tracked
+    ]
+
+    groups = parse_groups(main_tf)
+    projects = parse_projects(main_tf)
+
+    apps_file = terraform_dir / "apps.auto.tfvars.json"
+    apps = json.loads(apps_file.read_text())["apps"] if apps_file.is_file() else []
+    app_groups = dynamic_app_groups(apps)
+    app_projects = dynamic_app_projects(apps)
+
+    def lookup(kind: str, full_path: str) -> int | None:
+        """Retourne l'id distant si la ressource existe déjà, None si 404."""
+        status, body = pc.gitlab_api(
+            values["GITLAB_URL"], f"/api/v4/{kind}/{urllib.parse.quote(full_path, safe='')}",
+            token=gitlab_token,
+        )
+        if status == 404:
+            return None
+        if status != 200 or not isinstance(body, dict):
+            sys.exit(f"Erreur lecture {kind} '{full_path}': {status} {body}")
+        return body["id"]
+
+    pending_groups: list[tuple[str, str, int]] = []
+    for name in groups:
+        if name == "root" or ("gitlab_group", name) in tracked:
+            continue
+        remote_id = lookup("groups", full_group_path(groups, name))
+        if remote_id is not None:
+            pending_groups.append((name, full_group_path(groups, name), remote_id))
+
+    pending_projects: list[tuple[str, str, int]] = []
+    for name, (path, parent) in projects.items():
+        if ("gitlab_project", name) in tracked:
+            continue
+        full_path = f"{full_group_path(groups, parent)}/{path}"
+        remote_id = lookup("projects", full_path)
+        if remote_id is not None:
+            pending_projects.append((name, full_path, remote_id))
+
+    # Instances dynamiques de gitlab_group.app/gitlab_project.app (for_each
+    # piloté par apps.auto.tfvars.json, cf. main.tf locals.app_groups/
+    # app_projects) -- toujours enfants du groupe racine.
+    root_path = full_group_path(groups, "root")
+    for group in app_groups:
+        indexed_name = f'app["{group}"]'
+        if ("gitlab_group", indexed_name) in tracked:
+            continue
+        remote_id = lookup("groups", f"{root_path}/{group}")
+        if remote_id is not None:
+            pending_groups.append((indexed_name, f"{root_path}/{group}", remote_id))
+
+    for project_name, group in app_projects.items():
+        indexed_name = f'app["{project_name}"]'
+        if ("gitlab_project", indexed_name) in tracked:
+            continue
+        full_path = f"{root_path}/{group}/{project_name}"
+        remote_id = lookup("projects", full_path)
+        if remote_id is not None:
+            pending_projects.append((indexed_name, full_path, remote_id))
+
+    if not need_root_import and not pending_variables and not pending_groups and not pending_projects:
+        print(f"OK : {detail or 'state en-cluster déjà à jour'}, rien à faire.")
+        return
+    if need_root_import:
+        print(f"Seed nécessaire : {detail}.")
+    if pending_groups:
+        print("Sous-groupes déjà sur gitlab.com mais absents du state en-cluster : "
+              + ", ".join(p for _, p, _ in pending_groups))
+    if pending_projects:
+        print("Projets déjà sur gitlab.com mais absents du state en-cluster : "
+              + ", ".join(p for _, p, _ in pending_projects))
+    if pending_variables:
+        print("Variables déjà sur gitlab.com mais absentes du state en-cluster : "
+              + ", ".join(key for _, key in pending_variables))
 
     override_path = terraform_dir / "backend_override.tf"
     tf_env = {
@@ -110,13 +288,27 @@ def main() -> None:
         if result.returncode != 0:
             sys.exit(f"terraform init a échoué :\n{result.stdout}\n{result.stderr}")
 
-        result = run(
-            ["terraform", "import", "-input=false", "gitlab_group.root", str(group_id)],
-            cwd=terraform_dir, env=tf_env, capture_output=True,
-        )
-        if result.returncode != 0:
-            sys.exit(f"terraform import a échoué :\n{result.stdout}\n{result.stderr}")
-        print(f"gitlab_group.root (id {group_id}) importé dans le state en-cluster.")
+        def do_import(address: str, real_id: str, label: str) -> None:
+            result = run(
+                ["terraform", "import", "-input=false", address, real_id],
+                cwd=terraform_dir, env=tf_env, capture_output=True,
+            )
+            if result.returncode != 0:
+                sys.exit(f"terraform import a échoué :\n{result.stdout}\n{result.stderr}")
+            print(f"{address} ({label}) importé dans le state en-cluster.")
+
+        if need_root_import:
+            do_import("gitlab_group.root", str(group_id), f"id {group_id}")
+
+        for name, full_path, remote_id in pending_groups:
+            do_import(f"gitlab_group.{name}", str(remote_id), full_path)
+
+        for name, full_path, remote_id in pending_projects:
+            do_import(f"gitlab_project.{name}", str(remote_id), full_path)
+
+        for name, key in pending_variables:
+            import_id = f"{group_id}:{key}:{ENVIRONMENT_SCOPE}"
+            do_import(f"gitlab_group_variable.{name}", import_id, key)
     finally:
         override_path.unlink(missing_ok=True)
         shutil.rmtree(terraform_dir / ".terraform", ignore_errors=True)

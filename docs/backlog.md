@@ -658,6 +658,102 @@ CR Terraform si celui-ci existe déjà. Au passage, `platform_checks.py` et
 c'était un trou distinct qui aurait fait tourner `make gitlab-projects-wait`
 indéfiniment en cible sur un CR inexistant.
 
+**Trou restant découvert le 2026-07-11 (suite) : les `gitlab_group_variable`
+survivent aussi au rebuild, mais n'étaient pas réimportées.** Les variables
+de groupe (`CUSTOM_CA_CERTS`, `INTERNAL_GITLAB_HOST`, ...) vivent sur le
+groupe racine, donc lui survivent tout autant que `gitlab_group.root` — mais
+`gitlab-tf-state-seed.py` ne réimportait que ce dernier. Une fois
+`gitlab_group.root` réimporté, le premier `terraform apply` tentait de
+recréer les variables déjà présentes sur gitlab.com -> `400 {key} has
+already been taken`, même blocage en aval (constaté en pratique : erreurs
+sur `CUSTOM_CA_CERTS`, `INTERNAL_GITLAB_HOST`, `GITLAB_PUSH_SCHEME`,
+`GITLAB_PUSH_USERNAME`, `CI_TEMPLATES_PROJECT_PATH`). Corrigé :
+`gitlab-tf-state-seed.py` liste désormais aussi les variables déjà
+présentes sur le groupe (`GET /groups/:id/variables`) et importe celles qui
+manquent encore au state en-cluster (`platform_checks.load_gitlab_tf_state_resources`,
+factorisé depuis `check_gitlab_tf_state_seeded`) ; idempotent, ne relance
+`terraform init`/`import` que s'il reste réellement quelque chose à
+importer.
+
+**Constaté le 2026-07-11 : `helloworld-{dev,rec,preprod,prod}` bloquées en
+`ComparisonError` (« remote repository is empty »).** Le dernier cycle
+`platform-destroy`/`platform-up` a vidé `hello-groupe/helloworld-iac` sur
+gitlab.com (comportement voulu de `gitlab-reset.py`) ; Terraform recrée le
+projet vide au bootstrap suivant, mais rien ne repoussait le contenu
+(`gitlab-projects-iac/terraform-gitlabcom/main.tf` ne posait jamais
+`import_url`, cf. commentaire « Projets vides : le contenu est poussé
+manuellement »). Root cause distincte du trou déjà documenté ci-dessus (celui-ci
+bloquait le state Terraform lui-même ; celui-ci laisse les 4 projets
+applicatifs vides après recréation).
+
+**Corrigé le 2026-07-11 : `terraform-gitlabcom/` fusionné dans `terraform/`
+(l'ancien module de l'instance locale, décommissionné) plutôt que maintenus en
+parallèle** — un seul module `gitlab-projects-iac/terraform/` pour gitlab.com
+désormais, avec :
+- le mécanisme dynamique `var.apps` de l'ancien module local repris tel quel
+  (`app_projects`/`app_groups`, généré depuis `platform-gitops/argocd/apps/*.yaml`
+  par `toolbox/scripts/render-gitlab-projects.py` → `apps.auto.tfvars.json`,
+  inchangé) ;
+- les adaptations gitlab.com de `terraform-gitlabcom/` (PAT propriétaire en
+  `GITLAB_PUSH_TOKEN` — pas de `gitlab_user`/bot, impossible sur gitlab.com
+  Free, 403 vérifié le 2026-07-10 ; groupes `infra`/`shared-ci`/`app` en
+  sous-groupes de `gitlab_group.root`, avec héritage des variables CI/CD au
+  lieu d'une duplication par groupe top-level ; `GITLAB_PUSH_SCHEME`/
+  `GITLAB_PUSH_USERNAME`/`INTERNAL_GITLAB_HOST`/`CI_TEMPLATES_PROJECT_PATH`) ;
+- `import_url` désormais posé sur les 4 projets (`gitlab_project.app` pour
+  helloworld/helloworld-iac via `importFromGithub`, `ci_templates` et
+  `platform_gitops` en dur) — le trou d'origine ;
+- le groupe `to-be-continuous` (miroir local des composants CI) abandonné :
+  inutile sur gitlab.com, `include:component` résout déjà directement
+  `gitlab.com/to-be-continuous/*` (même instance) ;
+- pas de mirror GitLab→GitHub réintroduit (celui de l'instance locale
+  force-écrasait GitHub silencieusement, cf. incident déjà documenté) : la
+  propagation vers GitHub reste manuelle/CI explicite.
+
+`moved.tf` réécrit pour la transition (adresses plates de `terraform-gitlabcom/`
+→ `for_each` : `gitlab_group.hello_groupe` → `gitlab_group.app["hello-groupe"]`,
+`gitlab_project.helloworld{,_iac}` → `gitlab_project.app["helloworld{,-iac}"]`)
+pour éviter un destroy+create du groupe (`approvePlan: "auto"` sur le CR
+`gitlab-iac-com` — un plan destructeur s'appliquerait sans revue). Les 4
+projets applicatifs seront malgré tout recréés au prochain apply : `import_url`
+est `ForceNew` côté provider, et c'est précisément l'effet recherché
+(réimport du contenu GitHub dans des projets actuellement vides).
+`platform-gitops/argocd/platform/tf-controller/terraform-gitlab-com.yaml`
+repointé sur `path: ./terraform` (même state en-cluster, secretSuffix
+inchangé).
+
+**Effets de bord corrigés au passage** (références à `terraform-gitlabcom/`
+devenues fausses, ou bugs révélés par le passage à `var.apps` dynamique) :
+- `cockpit/scripts/gitlab-tf-state-seed.py` : chemin du module corrigé ;
+  `parse_groups`/`parse_projects` (parsing regex de `main.tf`) auraient
+  crashé sur les blocs `for_each` (`path`/`namespace_id` y sont des
+  expressions, pas des littéraux) — désormais ignorés proprement, avec une
+  résolution dédiée des instances dynamiques depuis `apps.auto.tfvars.json`
+  (mêmes règles que `locals.app_groups`/`app_projects` de `main.tf`).
+  `platform_checks.load_gitlab_tf_state_resources` distingue maintenant les
+  instances `for_each` (`gitlab_group.app["hello-groupe"]`) des ressources
+  simples, condition pour que le seed reconnaisse ces instances comme déjà
+  trackées après le premier apply.
+- `platform-gitops/.gitlab-ci.yml` (job `onboard-apps`) : poussait encore ses
+  commits générés vers l'ancienne instance locale décommissionnée
+  (`ci-push-bot@gitlab-webservice-default.gitlab.svc.cluster.local:8181`) —
+  remplacé par la même convention que `ci-templates/scripts/deploy.py`
+  (`GITLAB_PUSH_SCHEME`/`GITLAB_PUSH_USERNAME`/`INTERNAL_GITLAB_HOST` +
+  `GITLAB_PUSH_TOKEN`, chemin via `CI_PROJECT_PATH` natif).
+- Commentaires stales pointant vers `terraform-gitlabcom` corrigés dans
+  `ci-templates/templates/{deploy-gitops,promote}/template.yml` et
+  `cockpit/scripts/gitlab-reset.py`.
+
+**Non appliqué à ce stade** : ces changements ne prennent effet qu'au prochain
+reconcile du CR `gitlab-iac-com` une fois poussés sur GitHub (`GitRepository`
+suit `github.com/k8s-gitops-lab/gitlab-projects-iac`). `approvePlan: "auto"`
+signifie que ce reconcile détruira et recréera automatiquement, sans revue,
+les 4 projets applicatifs gitlab.com (contenu actuel : `platform-gitops` à
+jour avec GitHub au moment de la rédaction, `ci-templates`/`helloworld`/
+`helloworld-iac` déjà vides suite au dernier reset) — vérifié sans risque de
+perte de contenu à ce moment précis, mais à garder en tête si l'état diverge
+avant le prochain push.
+
 ---
 
 ## Entretien courant

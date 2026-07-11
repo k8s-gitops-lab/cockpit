@@ -240,6 +240,39 @@ def check_gitlab_iac(values: dict[str, str]) -> tuple[bool, str]:
     return True, f"Terraform {GITLAB_IAC_TERRAFORM_CR} appliqué ({message})"
 
 
+def load_gitlab_tf_state_resources(values: dict[str, str]) -> tuple[set[tuple[str, str]] | None, str]:
+    """Décode le Secret Kubernetes portant le state Terraform en-cluster de
+    gitlab-iac-com et retourne l'ensemble des ressources qu'il connaît déjà
+    (type, name), ou None si le secret est absent/illisible.
+
+    Pour une ressource indexée (`for_each`, ex. gitlab_group.app["hello-groupe"]),
+    `name` vaut `app["hello-groupe"]` (index inclus) plutôt que le seul label
+    "app" -- une ressource for_each avec 3 instances tracke 3 entrées
+    distinctes, pas une seule.
+
+    Utilisé à la fois par check_gitlab_tf_state_seeded (gitlab_group.root
+    seul) et par gitlab-tf-state-seed.py (qui doit aussi savoir quelles
+    gitlab_group_variable/instances for_each sont déjà trackées).
+    """
+    raw = kubectl_out([
+        "-n", "flux-system", "get", "secret", GITLAB_IAC_TFSTATE_SECRET,
+        "-o", "jsonpath={.data.tfstate}",
+    ])
+    if not (raw or "").strip():
+        return None, f"secret {GITLAB_IAC_TFSTATE_SECRET} absent (namespace flux-system)"
+    try:
+        state = json.loads(gzip.decompress(base64.b64decode(raw)))
+    except (ValueError, OSError):
+        return None, f"secret {GITLAB_IAC_TFSTATE_SECRET} illisible (state corrompu ?)"
+    resources: set[tuple[str, str]] = set()
+    for r in state.get("resources", []):
+        rtype, name = r.get("type"), r.get("name")
+        for instance in r.get("instances", [{}]):
+            index_key = instance.get("index_key")
+            resources.add((rtype, f'{name}["{index_key}"]' if index_key is not None else name))
+    return resources, ""
+
+
 def check_gitlab_tf_state_seeded(values: dict[str, str]) -> tuple[bool, str]:
     """Vérifie que le state Terraform en-cluster de gitlab-iac-com connaît déjà
     gitlab_group.root.
@@ -250,21 +283,10 @@ def check_gitlab_tf_state_seeded(values: dict[str, str]) -> tuple[bool, str]:
     -- sans réimport, le premier apply de tf-controller tente de recréer ce
     groupe et échoue en 403. Voir scripts/gitlab-tf-state-seed.py.
     """
-    raw = kubectl_out([
-        "-n", "flux-system", "get", "secret", GITLAB_IAC_TFSTATE_SECRET,
-        "-o", "jsonpath={.data.tfstate}",
-    ])
-    if not (raw or "").strip():
-        return False, f"secret {GITLAB_IAC_TFSTATE_SECRET} absent (namespace flux-system)"
-    try:
-        state = json.loads(gzip.decompress(base64.b64decode(raw)))
-    except (ValueError, OSError):
-        return False, f"secret {GITLAB_IAC_TFSTATE_SECRET} illisible (state corrompu ?)"
-    seeded = any(
-        r.get("type") == "gitlab_group" and r.get("name") == "root"
-        for r in state.get("resources", [])
-    )
-    if not seeded:
+    resources, detail = load_gitlab_tf_state_resources(values)
+    if resources is None:
+        return False, detail
+    if ("gitlab_group", "root") not in resources:
         return False, "gitlab_group.root absent du state Terraform en-cluster"
     return True, "gitlab_group.root présent dans le state Terraform en-cluster"
 

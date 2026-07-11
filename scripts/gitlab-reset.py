@@ -8,7 +8,7 @@
 # le compte a bien can_create_group=true et un PAT scope api complet. Le
 # groupe racine est donc créé une fois pour toutes manuellement via l'UI
 # (qui affiche l'étape de vérification, contrairement à l'API) puis importé
-# dans l'état Terraform (cf. terraform-gitlabcom/main.tf) ; ce script ne
+# dans l'état Terraform (cf. terraform/main.tf) ; ce script ne
 # doit plus jamais le supprimer.
 #
 # Les sous-groupes/projets ne sont pas soumis à cette restriction : un
@@ -59,7 +59,7 @@ def main() -> None:
             f"Groupe '{GROUP_PATH}' introuvable -- doit être créé une fois "
             f"manuellement via l'UI gitlab.com (création top-level bloquée "
             f"côté API, cf. commentaire en tête de ce script), puis importé "
-            f"dans l'état Terraform (terraform-gitlabcom/main.tf)."
+            f"dans l'état Terraform (terraform/main.tf)."
         )
     if status != 200:
         sys.exit(f"Erreur lecture groupe '{GROUP_PATH}': {status} {group}")
